@@ -186,7 +186,7 @@ class Game extends \Bga\GameFramework\Table
         // Activate first player
         $this->activeNextPlayer();
 
-        // Start with RoundStart state
+        // Return initial state class for modern BGA framework
         return RoundStart::class;
     }
 
@@ -305,4 +305,3 @@ class Game extends \Bga\GameFramework\Table
         }
     }
 }
-

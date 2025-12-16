@@ -11,10 +11,9 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Battle Draw Cards
+ * State: Battle Draw Cards (game state)
  * - Each participant draws their top card
  * - Determine resolution order (random)
- * - Transition to card resolution
  */
 class BattleDrawCards extends GameState
 {
@@ -27,6 +26,9 @@ class BattleDrawCards extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - draws cards for all participants
+     */
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
@@ -34,11 +36,10 @@ class BattleDrawCards extends GameState
 
         $battleId = (int)$stateHelper->get(STATE_CURRENT_BATTLE);
 
-        // Have all participants draw cards and get resolution order
+        // Have all participants draw cards
         $drawnCards = $combatResolver->drawCardsForBattle($battleId);
 
         if (empty($drawnCards)) {
-            // No cards drawn - battle should end (shouldn't normally happen)
             return BattleRoundEnd::class;
         }
 
@@ -54,7 +55,6 @@ class BattleDrawCards extends GameState
             ];
         }
 
-        // Sort by resolution order for display
         usort($cardData, fn($a, $b) => $a['resolution_order'] <=> $b['resolution_order']);
 
         $this->notify->all('battleCardsDrawn', clienttranslate('All combatants draw their cards'), [
@@ -65,4 +65,3 @@ class BattleDrawCards extends GameState
         return BattleResolveCard::class;
     }
 }
-

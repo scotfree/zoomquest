@@ -11,11 +11,10 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Resolve Actions
+ * State: Resolve Actions (game state)
  * - Apply all movement actions
  * - Apply all rest actions
  * - Identify battle locations
- * - Transition to battle or victory check
  */
 class ResolveActions extends GameState
 {
@@ -28,8 +27,14 @@ class ResolveActions extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - resolves all player actions
+     */
     function onEnteringState()
     {
+        // Auto-submit monster actions (they always choose battle)
+        $this->game->submitMonsterActions();
+
         $stateHelper = $this->game->getGameStateHelper();
         $deck = $this->game->getDeck();
 
@@ -108,12 +113,9 @@ class ResolveActions extends GameState
                 STATE_BATTLES_TO_RESOLVE,
                 json_encode($battleLocations)
             );
-
             return BattleSetup::class;
+        } else {
+            return CheckVictory::class;
         }
-
-        // No battles - go to victory check
-        return CheckVictory::class;
     }
 }
-

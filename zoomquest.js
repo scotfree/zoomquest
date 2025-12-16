@@ -63,7 +63,12 @@ function (dojo, declare, gamegui, counter) {
         //
 
         buildGameArea: function() {
-            const gameArea = this.getGameAreaElement();
+            // Target our template div instead of the default game area
+            const gameArea = document.getElementById('zq-game-area');
+            if (!gameArea) {
+                console.error('ZoomQuest: #zq-game-area not found in template');
+                return;
+            }
             
             gameArea.insertAdjacentHTML('beforeend', `
                 <div id="zq-container">
@@ -263,7 +268,14 @@ function (dojo, declare, gamegui, counter) {
             switch (stateName) {
                 case 'ActionSelection':
                     if (this.isCurrentPlayerActive()) {
-                        this.showActionSelectionUI(args.args);
+                        // For multipleactiveplayer states, private args are in _private[playerId]
+                        const playerId = this.player_id;
+                        const privateArgs = args.args?._private?.[playerId];
+                        if (privateArgs && privateArgs.currentLocation) {
+                            this.showActionSelectionUI(privateArgs);
+                        } else {
+                            console.log('Waiting for private args...', args);
+                        }
                     }
                     break;
 

@@ -25,15 +25,30 @@ class ActionSelection extends GameState
             type: StateType::MULTIPLE_ACTIVE_PLAYER,
             description: clienttranslate('Other players must choose their action'),
             descriptionMyTurn: clienttranslate('${you} must choose an action: Move, Battle, or Rest'),
+            transitions: [
+                'resolve' => ResolveActions::class,
+            ],
         );
     }
 
-    function getArgs(int $activePlayerId): array
+    /**
+     * Provide state arguments for the current player
+     * For multipleactiveplayer states, this is called with null for public args
+     * and with playerId for private args
+     */
+    function getArgs(?int $playerId): array
     {
+        // If no player ID, return public args (visible to all)
+        if ($playerId === null) {
+            return [
+                'round' => $this->game->getGameStateHelper()->getRound(),
+            ];
+        }
+
         $stateHelper = $this->game->getGameStateHelper();
 
         // Get player's entity
-        $entity = $stateHelper->getEntityByPlayerId($activePlayerId);
+        $entity = $stateHelper->getEntityByPlayerId($playerId);
         if (!$entity) {
             return ['error' => 'No entity found for player'];
         }
@@ -47,7 +62,7 @@ class ActionSelection extends GameState
             'name' => $entity['location_name'],
         ];
 
-        // Check if there are enemies at current location (for battle option relevance)
+        // Check if there are enemies at current location
         $entitiesHere = $this->game->getCombatResolver()->getEntitiesAtLocation($entity['location_id']);
         $hasEnemies = false;
         foreach ($entitiesHere as $e) {
@@ -57,7 +72,7 @@ class ActionSelection extends GameState
             }
         }
 
-        // Get deck counts for display
+        // Get deck counts
         $deckCounts = $this->game->getDeck()->getPileCounts((int)$entity['entity_id']);
 
         return [
@@ -70,6 +85,9 @@ class ActionSelection extends GameState
         ];
     }
 
+    /**
+     * Player action: Select action (move/battle/rest)
+     */
     #[PossibleAction]
     function actSelectAction(string $actionType, ?string $targetLocation, int $activePlayerId, array $args)
     {
@@ -105,53 +123,35 @@ class ActionSelection extends GameState
         $this->game->recordActionChoice($entityId, $actionType, $targetLocation);
 
         // Notify the player
-        $actionNames = [
-            ACTION_MOVE => clienttranslate('Move'),
-            ACTION_BATTLE => clienttranslate('Battle'),
-            ACTION_REST => clienttranslate('Rest'),
-        ];
-
-        $message = $actionType === ACTION_MOVE
-            ? clienttranslate('${player_name} has chosen their action')
-            : clienttranslate('${player_name} has chosen their action');
-
-        $this->notify->all('actionSelected', $message, [
+        $this->notify->all('actionSelected', clienttranslate('${player_name} has chosen their action'), [
             'player_id' => $activePlayerId,
             'player_name' => $this->game->getPlayerNameById($activePlayerId),
         ]);
 
-        // Deactivate this player (they've made their choice)
-        $this->game->gamestate->setPlayerNonMultiactive($activePlayerId, '');
+        // Deactivate this player - when all players deactivated, framework transitions to next state
+        $this->game->gamestate->setPlayerNonMultiactive($activePlayerId, 'resolve');
 
-        // Check if all players have chosen
-        if ($this->game->haveAllPlayersChosen()) {
-            // Auto-submit monster actions
-            $this->game->submitMonsterActions();
-            return ResolveActions::class;
-        }
-
-        // Stay in this state, waiting for other players
-        return null;
+        return null; // Stay in this state until all players have acted
     }
 
     /**
-     * Called when a player times out or becomes zombie
+     * Handle zombie (abandoned) player - default to rest action
      */
     function zombie(int $playerId)
     {
-        // Default to rest for zombie players
         $entity = $this->game->getGameStateHelper()->getEntityByPlayerId($playerId);
         if ($entity) {
             $this->game->recordActionChoice((int)$entity['entity_id'], ACTION_REST);
         }
-        $this->game->gamestate->setPlayerNonMultiactive($playerId, '');
-
-        if ($this->game->haveAllPlayersChosen()) {
-            $this->game->submitMonsterActions();
-            return ResolveActions::class;
-        }
-
+        $this->game->gamestate->setPlayerNonMultiactive($playerId, 'resolve');
         return null;
     }
-}
 
+    /**
+     * Called when all players have finished - transition to ResolveActions
+     */
+    function onAllPlayersNonMultiactive(): string
+    {
+        return ResolveActions::class;
+    }
+}

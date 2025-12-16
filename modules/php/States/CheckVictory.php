@@ -11,7 +11,7 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Check Victory
+ * State: Check Victory (game state)
  * - Check if all monsters are defeated (WIN)
  * - Check if all players are defeated (LOSE)
  * - Otherwise continue to next round
@@ -28,16 +28,16 @@ class CheckVictory extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - checks victory/defeat conditions
+     */
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
 
-        // Check victory conditions
         if ($stateHelper->areAllMonstersDefeated()) {
-            // Players win!
             $this->notify->all('gameVictory', clienttranslate('All monsters have been defeated! Victory!'), []);
 
-            // Set scores - all players win
             $players = $this->game->loadPlayersBasicInfos();
             foreach ($players as $playerId => $player) {
                 $this->game->DbQuery("UPDATE player SET player_score = 1 WHERE player_id = $playerId");
@@ -47,10 +47,8 @@ class CheckVictory extends GameState
         }
 
         if ($stateHelper->areAllPlayersDefeated()) {
-            // Players lose
             $this->notify->all('gameDefeat', clienttranslate('All heroes have fallen. The quest has failed.'), []);
 
-            // Set scores - all players lose
             $players = $this->game->loadPlayersBasicInfos();
             foreach ($players as $playerId => $player) {
                 $this->game->DbQuery("UPDATE player SET player_score = 0 WHERE player_id = $playerId");
@@ -59,8 +57,7 @@ class CheckVictory extends GameState
             return ST_END_GAME;
         }
 
-        // Game continues - next round
+        // Game continues - go to next round
         return RoundStart::class;
     }
 }
-

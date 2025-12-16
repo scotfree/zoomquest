@@ -11,10 +11,9 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Battle Setup
+ * State: Battle Setup (game state)
  * - Pick the next battle location
  * - Create battle record and participants
- * - Transition to card drawing
  */
 class BattleSetup extends GameState
 {
@@ -27,6 +26,9 @@ class BattleSetup extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - sets up the next battle
+     */
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
@@ -37,7 +39,6 @@ class BattleSetup extends GameState
         $battleLocations = $battlesJson ? json_decode($battlesJson, true) : [];
 
         if (empty($battleLocations)) {
-            // No more battles
             return CheckVictory::class;
         }
 
@@ -49,23 +50,20 @@ class BattleSetup extends GameState
         $battleId = $combatResolver->createBattle($locationId);
         $stateHelper->set(STATE_CURRENT_BATTLE, (string)$battleId);
 
-        // Get location name and participants for notification
+        // Get location name and participants
         $locationName = $this->game->getUniqueValueFromDB(
             "SELECT location_name FROM location WHERE location_id = '" . addslashes($locationId) . "'"
         );
 
         $participants = $combatResolver->getEntitiesAtLocation($locationId);
-        $participantNames = array_column($participants, 'entity_name');
 
         $this->notify->all('battleStart', clienttranslate('Battle begins at ${location_name}!'), [
             'battle_id' => $battleId,
             'location_id' => $locationId,
             'location_name' => $locationName,
             'participants' => $participants,
-            'participant_names' => implode(', ', $participantNames),
         ]);
 
         return BattleDrawCards::class;
     }
 }
-

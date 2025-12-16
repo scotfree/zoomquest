@@ -23,7 +23,8 @@ class ConfigLoader
      */
     public function loadScenario(string $filename): array
     {
-        $filepath = dirname(__DIR__, 2) . '/configs/' . $filename;
+        // __DIR__ is modules/php/Helpers, so we need to go up 3 levels to reach game root
+        $filepath = dirname(__DIR__, 3) . '/configs/' . $filename;
         
         if (!file_exists($filepath)) {
             throw new \BgaUserException("Scenario file not found: $filename");

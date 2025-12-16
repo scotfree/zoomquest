@@ -11,10 +11,9 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Battle Cleanup
+ * State: Battle Cleanup (game state)
  * - Survivors shuffle discard back into active deck
  * - Check if more battles to resolve
- * - Transition appropriately
  */
 class BattleCleanup extends GameState
 {
@@ -27,6 +26,9 @@ class BattleCleanup extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - cleans up after battle
+     */
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
@@ -35,10 +37,10 @@ class BattleCleanup extends GameState
 
         $battleId = (int)$stateHelper->get(STATE_CURRENT_BATTLE);
 
-        // End the battle (shuffles discard for survivors)
+        // End the battle
         $combatResolver->endBattle($battleId);
 
-        // Get survivor info for notification
+        // Get survivor info
         $survivors = $this->game->getObjectListFromDB(
             "SELECT e.entity_id, e.entity_name
              FROM battle_participant bp
@@ -66,9 +68,8 @@ class BattleCleanup extends GameState
 
         if (!empty($battleLocations)) {
             return BattleSetup::class;
+        } else {
+            return CheckVictory::class;
         }
-
-        return CheckVictory::class;
     }
 }
-

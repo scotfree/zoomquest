@@ -11,7 +11,7 @@ use Bga\Games\Zoomquest\Game;
 require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
- * State: Battle Round End
+ * State: Battle Round End (game state)
  * - Check if one team is eliminated
  * - If battle continues, go back to draw cards
  * - If battle ends, go to cleanup
@@ -27,6 +27,9 @@ class BattleRoundEnd extends GameState
         );
     }
 
+    /**
+     * Called when entering this state - checks if battle continues
+     */
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
@@ -38,14 +41,13 @@ class BattleRoundEnd extends GameState
         $eliminatedTeam = $combatResolver->getEliminatedTeam($battleId);
 
         if ($eliminatedTeam) {
-            // Battle is over
             if ($eliminatedTeam === 'monsters') {
                 $this->notify->all('battleEnd', clienttranslate('The heroes are victorious!'), [
                     'battle_id' => $battleId,
                     'winner' => 'players',
                 ]);
 
-                // Update battle won stats for participating players
+                // Update stats for participating players
                 $participants = $this->game->getObjectListFromDB(
                     "SELECT e.player_id FROM battle_participant bp
                      JOIN entity e ON bp.entity_id = e.entity_id
@@ -64,7 +66,7 @@ class BattleRoundEnd extends GameState
             return BattleCleanup::class;
         }
 
-        // Battle continues - reset for next round
+        // Battle continues
         $combatResolver->resetBattleRound($battleId);
 
         $this->notify->all('battleContinues', clienttranslate('The battle continues...'), [
@@ -74,4 +76,3 @@ class BattleRoundEnd extends GameState
         return BattleDrawCards::class;
     }
 }
-
