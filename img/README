@@ -1,0 +1,21 @@
+ZoomQuest Images
+================
+
+This game currently uses emoji and CSS for all visuals.
+No images are required for basic functionality.
+
+Optional images you could add:
+- player_token.png - Character token for map
+- monster_token.png - Monster token for map  
+- card_attack.png - Attack card art
+- card_defend.png - Defend card art
+- card_heal.png - Heal card art
+- map_background.jpg - Parchment/fantasy map texture
+- node_background.png - Location node background
+
+Sound effects (optional):
+- battle_start.mp3/.ogg - Battle begins
+- card_play.mp3/.ogg - Card played
+- victory.mp3/.ogg - Game won
+- defeat.mp3/.ogg - Game lost
+

@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "target": "ES2017",
+        "module": "AMD",
+        "lib": ["ES2017", "DOM"],
+        "checkJs": true,
+        "noEmit": true
+    },
+    "include": ["*.js"],
+    "exclude": ["node_modules"]
+}
+

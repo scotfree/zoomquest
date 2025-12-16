@@ -1,1 +1,23 @@
-{}
+{
+    "$schema": "https://studio.boardgamearena.com/schema/game_preferences.json",
+    "100": {
+        "name": "Animation Speed",
+        "needReload": false,
+        "values": {
+            "1": { "name": "Fast" },
+            "2": { "name": "Normal" },
+            "3": { "name": "Slow" }
+        },
+        "default": 2
+    },
+    "101": {
+        "name": "Sound Effects",
+        "needReload": false,
+        "values": {
+            "1": { "name": "Enabled" },
+            "2": { "name": "Disabled" }
+        },
+        "default": 1
+    }
+}
+

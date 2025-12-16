@@ -1,1 +1,38 @@
-{}
+{
+    "$schema": "https://studio.boardgamearena.com/schema/game_stats.json",
+    "table": {
+        "rounds_played": {
+            "id": 10,
+            "name": "Rounds played",
+            "type": "int"
+        },
+        "monsters_defeated": {
+            "id": 11,
+            "name": "Monsters defeated",
+            "type": "int"
+        }
+    },
+    "player": {
+        "battles_won": {
+            "id": 20,
+            "name": "Battles won",
+            "type": "int"
+        },
+        "cards_destroyed": {
+            "id": 21,
+            "name": "Cards destroyed (dealt)",
+            "type": "int"
+        },
+        "cards_lost": {
+            "id": 22,
+            "name": "Cards lost (received)",
+            "type": "int"
+        },
+        "cards_healed": {
+            "id": 23,
+            "name": "Cards healed",
+            "type": "int"
+        }
+    }
+}
+

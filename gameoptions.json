@@ -1,1 +1,14 @@
-{}
+{
+    "$schema": "https://studio.boardgamearena.com/schema/game_options.json",
+    "100": {
+        "name": "Scenario",
+        "values": {
+            "1": {
+                "name": "Test Scenario",
+                "description": "A simple test map with one warrior and two goblins"
+            }
+        },
+        "default": 1
+    }
+}
+

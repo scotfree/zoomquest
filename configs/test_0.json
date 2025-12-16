@@ -1,0 +1,55 @@
+{
+  "level_name": "test",
+  "round": 0,
+  "map": {
+    "locations": [
+      { "id": "village", "name": "Village", "description": "A peaceful starting village" },
+      { "id": "forest", "name": "Dark Forest", "description": "A shadowy forest path" },
+      { "id": "cave", "name": "Goblin Cave", "description": "A damp cave echoing with growls" },
+      { "id": "mountain", "name": "Mountain Pass", "description": "A narrow pass through the peaks" },
+      { "id": "ruins", "name": "Ancient Ruins", "description": "Crumbling stone structures overrun by monsters" }
+    ],
+    "connections": [
+      { "name": "Forest Trail", "from": "village", "to": "forest", "bidirectional": true },
+      { "name": "Cave Entrance", "from": "forest", "to": "cave", "bidirectional": true },
+      { "name": "Mountain Path", "from": "forest", "to": "mountain", "bidirectional": true },
+      { "name": "Ruins Approach", "from": "mountain", "to": "ruins", "bidirectional": true }
+    ]
+  },
+  "players": [
+    {
+      "name": "Bob",
+      "class": "warrior",
+      "location": "village",
+      "decks": {
+        "active": ["attack", "attack", "attack", "attack", "attack"],
+        "discarded": [],
+        "destroyed": []
+      }
+    }
+  ],
+  "monsters": [
+    {
+      "name": "Goblin",
+      "class": "goblin",
+      "location": "cave",
+      "decks": {
+        "active": ["attack", "attack", "defend"],
+        "discarded": [],
+        "destroyed": []
+      }
+    },
+    {
+      "name": "Goblin",
+      "class": "goblin",
+      "location": "ruins",
+      "decks": {
+        "active": ["attack", "attack", "defend"],
+        "discarded": [],
+        "destroyed": []
+      }
+    }
+  ]
+}
+
+
