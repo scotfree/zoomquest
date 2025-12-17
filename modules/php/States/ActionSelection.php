@@ -23,7 +23,7 @@ class ActionSelection extends GameState
             $game,
             id: ST_ACTION_SELECTION,
             type: StateType::MULTIPLE_ACTIVE_PLAYER,
-            description: clienttranslate('Other players must choose their action'),
+            description: clienttranslate('Waiting for other players to choose their action'),
             descriptionMyTurn: clienttranslate('${you} must choose an action: Move, Battle, or Rest'),
             transitions: [
                 'resolve' => ResolveActions::class,
@@ -32,56 +32,58 @@ class ActionSelection extends GameState
     }
 
     /**
-     * Provide state arguments for the current player
-     * For multipleactiveplayer states, this is called with null for public args
-     * and with playerId for private args
+     * Provide state arguments
+     * Include all player data keyed by player ID so client can extract their own
      */
     function getArgs(?int $playerId): array
     {
-        // If no player ID, return public args (visible to all)
-        if ($playerId === null) {
-            return [
-                'round' => $this->game->getGameStateHelper()->getRound(),
+        $stateHelper = $this->game->getGameStateHelper();
+        
+        // Build args for all players (each player will extract their own on client)
+        $playerData = [];
+        $players = $this->game->loadPlayersBasicInfos();
+        
+        foreach ($players as $pid => $player) {
+            $entity = $stateHelper->getEntityByPlayerId($pid);
+            if (!$entity) {
+                continue;
+            }
+
+            // Get adjacent locations for move options
+            $adjacentLocations = $stateHelper->getAdjacentLocations($entity['location_id']);
+
+            // Get current location info
+            $currentLocation = [
+                'id' => $entity['location_id'],
+                'name' => $entity['location_name'] ?? $entity['location_id'],
+            ];
+
+            // Check if there are enemies at current location
+            $entitiesHere = $this->game->getCombatResolver()->getEntitiesAtLocation($entity['location_id']);
+            $hasEnemies = false;
+            foreach ($entitiesHere as $e) {
+                if ($e['entity_type'] === ENTITY_MONSTER) {
+                    $hasEnemies = true;
+                    break;
+                }
+            }
+
+            // Get deck counts
+            $deckCounts = $this->game->getDeck()->getPileCounts((int)$entity['entity_id']);
+
+            $playerData[$pid] = [
+                'entity' => $entity,
+                'currentLocation' => $currentLocation,
+                'adjacentLocations' => $adjacentLocations,
+                'hasEnemiesHere' => $hasEnemies,
+                'deckCounts' => $deckCounts,
+                'currentChoice' => $this->game->getActionChoice((int)$entity['entity_id']),
             ];
         }
 
-        $stateHelper = $this->game->getGameStateHelper();
-
-        // Get player's entity
-        $entity = $stateHelper->getEntityByPlayerId($playerId);
-        if (!$entity) {
-            return ['error' => 'No entity found for player'];
-        }
-
-        // Get adjacent locations for move options
-        $adjacentLocations = $stateHelper->getAdjacentLocations($entity['location_id']);
-
-        // Get current location info
-        $currentLocation = [
-            'id' => $entity['location_id'],
-            'name' => $entity['location_name'],
-        ];
-
-        // Check if there are enemies at current location
-        $entitiesHere = $this->game->getCombatResolver()->getEntitiesAtLocation($entity['location_id']);
-        $hasEnemies = false;
-        foreach ($entitiesHere as $e) {
-            if ($e['entity_type'] === ENTITY_MONSTER) {
-                $hasEnemies = true;
-                break;
-            }
-        }
-
-        // Get deck counts
-        $deckCounts = $this->game->getDeck()->getPileCounts((int)$entity['entity_id']);
-
         return [
-            'entity' => $entity,
-            'currentLocation' => $currentLocation,
-            'adjacentLocations' => $adjacentLocations,
-            'hasEnemiesHere' => $hasEnemies,
-            'deckCounts' => $deckCounts,
-            'currentChoice' => $this->game->getActionChoice((int)$entity['entity_id']),
+            'round' => $stateHelper->getRound(),
+            'playerData' => $playerData,
         ];
     }
 
@@ -91,13 +93,16 @@ class ActionSelection extends GameState
     #[PossibleAction]
     function actSelectAction(string $actionType, ?string $targetLocation, int $activePlayerId, array $args)
     {
+        // For multiactive states, get the actual calling player (not the framework's activePlayerId)
+        $playerId = (int)$this->game->getCurrentPlayerId();
+        
         // Validate action type
         if (!in_array($actionType, [ACTION_MOVE, ACTION_BATTLE, ACTION_REST])) {
             throw new \BgaUserException(clienttranslate("Invalid action type"));
         }
 
         // Get player's entity
-        $entity = $this->game->getGameStateHelper()->getEntityByPlayerId($activePlayerId);
+        $entity = $this->game->getGameStateHelper()->getEntityByPlayerId($playerId);
         if (!$entity) {
             throw new \BgaUserException(clienttranslate("No entity found for player"));
         }
@@ -124,12 +129,12 @@ class ActionSelection extends GameState
 
         // Notify the player
         $this->notify->all('actionSelected', clienttranslate('${player_name} has chosen their action'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
+            'player_id' => $playerId,
+            'player_name' => $this->game->getPlayerNameById($playerId),
         ]);
 
         // Deactivate this player - when all players deactivated, framework transitions to next state
-        $this->game->gamestate->setPlayerNonMultiactive($activePlayerId, 'resolve');
+        $this->game->gamestate->setPlayerNonMultiactive($playerId, 'resolve');
 
         return null; // Stay in this state until all players have acted
     }

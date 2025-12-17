@@ -38,6 +38,7 @@ function (dojo, declare, gamegui, counter) {
 
         setup: function(gamedatas) {
             console.log("Starting game setup", gamedatas);
+            console.log("Current player_id:", this.player_id, "Type:", typeof this.player_id);
 
             this.gamedatas = gamedatas;
 
@@ -65,6 +66,7 @@ function (dojo, declare, gamegui, counter) {
         buildGameArea: function() {
             // Target our template div instead of the default game area
             const gameArea = document.getElementById('zq-game-area');
+            console.log('buildGameArea: looking for #zq-game-area, found:', gameArea);
             if (!gameArea) {
                 console.error('ZoomQuest: #zq-game-area not found in template');
                 return;
@@ -264,18 +266,38 @@ function (dojo, declare, gamegui, counter) {
 
         onEnteringState: function(stateName, args) {
             console.log('Entering state:', stateName, args);
+            console.log('isCurrentPlayerActive:', this.isCurrentPlayerActive());
 
             switch (stateName) {
                 case 'ActionSelection':
-                    if (this.isCurrentPlayerActive()) {
-                        // For multipleactiveplayer states, private args are in _private[playerId]
-                        const playerId = this.player_id;
-                        const privateArgs = args.args?._private?.[playerId];
-                        if (privateArgs && privateArgs.currentLocation) {
-                            this.showActionSelectionUI(privateArgs);
-                        } else {
-                            console.log('Waiting for private args...', args);
+                    // For multiactive states, check if this player is in the multiactive list
+                    const isMultiactive = args.multiactive && args.multiactive.includes(String(this.player_id));
+                    const isActive = this.isCurrentPlayerActive() || isMultiactive;
+                    console.log('ActionSelection state - isCurrentPlayerActive:', this.isCurrentPlayerActive(), 
+                                'isMultiactive:', isMultiactive, 'multiactive list:', args.multiactive);
+                    
+                    if (isActive) {
+                        // player_id might be number, but object keys are strings
+                        const playerId = String(this.player_id);
+                        console.log('Looking for player:', playerId, 'in playerData:', args.args?.playerData);
+                        
+                        let myArgs = null;
+                        
+                        // Look for player data in args.args.playerData[playerId]
+                        if (args.args?.playerData?.[playerId]) {
+                            myArgs = args.args.playerData[playerId];
+                            console.log('Found args in playerData[playerId]:', myArgs);
                         }
+                        
+                        if (myArgs && myArgs.currentLocation) {
+                            this.showActionSelectionUI(myArgs);
+                        } else {
+                            console.log('No valid player args found. args.args:', args.args);
+                            // Show a basic UI even without full args
+                            this.showBasicActionUI();
+                        }
+                    } else {
+                        console.log('Player not active in this state');
                     }
                     break;
 
@@ -324,6 +346,11 @@ function (dojo, declare, gamegui, counter) {
             const panel = document.getElementById('zq-action-panel');
             const buttons = document.getElementById('zq-action-buttons');
 
+            if (!panel || !buttons) {
+                console.error('Action panel elements not found');
+                return;
+            }
+
             this.selectedAction = null;
             this.selectedMoveTarget = null;
 
@@ -366,12 +393,45 @@ function (dojo, declare, gamegui, counter) {
 
         hideActionSelectionUI: function() {
             const panel = document.getElementById('zq-action-panel');
-            panel.style.display = 'none';
+            if (panel) panel.style.display = 'none';
 
             // Remove node highlights
             document.querySelectorAll('.zq-node').forEach(node => {
                 node.classList.remove('zq-node-adjacent', 'zq-node-selected');
             });
+        },
+
+        // Fallback UI when we don't have full args from server
+        showBasicActionUI: function() {
+            const panel = document.getElementById('zq-action-panel');
+            const buttons = document.getElementById('zq-action-buttons');
+
+            if (!panel || !buttons) {
+                console.error('Action panel elements not found');
+                return;
+            }
+
+            this.selectedAction = null;
+            this.selectedMoveTarget = null;
+
+            let html = `
+                <div class="zq-action-options">
+                    <button id="zq-btn-move" class="zq-action-btn" disabled>🚶 Move (loading...)</button>
+                    <button id="zq-btn-battle" class="zq-action-btn">⚔️ Battle</button>
+                    <button id="zq-btn-rest" class="zq-action-btn">💤 Rest</button>
+                </div>
+                <div id="zq-confirm-action" style="display: none;">
+                    <button id="zq-btn-confirm" class="zq-confirm-btn">Confirm Action</button>
+                </div>
+            `;
+            buttons.innerHTML = html;
+
+            // Add click handlers for battle and rest (move needs locations)
+            document.getElementById('zq-btn-battle').addEventListener('click', () => this.onSelectBattle());
+            document.getElementById('zq-btn-rest').addEventListener('click', () => this.onSelectRest());
+            document.getElementById('zq-btn-confirm').addEventListener('click', () => this.onConfirmAction());
+
+            panel.style.display = 'block';
         },
 
         highlightAdjacentNodes: function(adjacentLocations) {
@@ -437,10 +497,13 @@ function (dojo, declare, gamegui, counter) {
 
             // Update button states
             document.querySelectorAll('.zq-action-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            document.getElementById('zq-btn-battle').classList.add('zq-selected');
+            const battleBtn = document.getElementById('zq-btn-battle');
+            if (battleBtn) battleBtn.classList.add('zq-selected');
 
-            document.getElementById('zq-move-targets').style.display = 'none';
-            document.getElementById('zq-confirm-action').style.display = 'block';
+            const moveTargets = document.getElementById('zq-move-targets');
+            const confirmAction = document.getElementById('zq-confirm-action');
+            if (moveTargets) moveTargets.style.display = 'none';
+            if (confirmAction) confirmAction.style.display = 'block';
         },
 
         onSelectRest: function() {
@@ -449,10 +512,13 @@ function (dojo, declare, gamegui, counter) {
 
             // Update button states
             document.querySelectorAll('.zq-action-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            document.getElementById('zq-btn-rest').classList.add('zq-selected');
+            const restBtn = document.getElementById('zq-btn-rest');
+            if (restBtn) restBtn.classList.add('zq-selected');
 
-            document.getElementById('zq-move-targets').style.display = 'none';
-            document.getElementById('zq-confirm-action').style.display = 'block';
+            const moveTargets = document.getElementById('zq-move-targets');
+            const confirmAction = document.getElementById('zq-confirm-action');
+            if (moveTargets) moveTargets.style.display = 'none';
+            if (confirmAction) confirmAction.style.display = 'block';
         },
 
         onConfirmAction: function() {
@@ -491,11 +557,13 @@ function (dojo, declare, gamegui, counter) {
         //
 
         showBattlePanel: function() {
-            document.getElementById('zq-battle-panel').style.display = 'block';
+            const panel = document.getElementById('zq-battle-panel');
+            if (panel) panel.style.display = 'block';
         },
 
         hideBattlePanel: function() {
-            document.getElementById('zq-battle-panel').style.display = 'none';
+            const panel = document.getElementById('zq-battle-panel');
+            if (panel) panel.style.display = 'none';
         },
 
         updateBattleDisplay: function(data) {
@@ -515,7 +583,12 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_roundStart: async function(args) {
-            document.getElementById('zq-round-number').textContent = args.round;
+            console.log('Round start notification:', args);
+            const roundNum = document.getElementById('zq-round-number');
+            if (roundNum) roundNum.textContent = args.round;
+            
+            // Re-render entities to show updated positions
+            this.renderEntities();
         },
 
         notif_actionSelected: function(args) {
@@ -708,9 +781,15 @@ function (dojo, declare, gamegui, counter) {
         },
 
         getAnimationDelay: function() {
-            const pref = this.getGameUserPreference(100);
-            const speeds = { 1: 'fast', 2: 'normal', 3: 'slow' };
-            const speed = speeds[pref] || 'normal';
+            // Try to get user preference, default to normal if not set
+            let speed = 'normal';
+            try {
+                const pref = this.getGameUserPreference(100);
+                const speeds = { 1: 'fast', 2: 'normal', 3: 'slow' };
+                speed = speeds[pref] || 'normal';
+            } catch (e) {
+                // Preference not defined, use default
+            }
             return this.animationDelays[speed];
         },
 

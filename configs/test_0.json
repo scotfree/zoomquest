@@ -26,6 +26,16 @@
         "discarded": [],
         "destroyed": []
       }
+    },
+    {
+      "name": "Alice",
+      "class": "mage",
+      "location": "village",
+      "decks": {
+        "active": ["attack", "attack", "defend", "defend", "heal"],
+        "discarded": [],
+        "destroyed": []
+      }
     }
   ],
   "monsters": [
