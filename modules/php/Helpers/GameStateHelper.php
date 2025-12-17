@@ -143,16 +143,20 @@ class GameStateHelper
     {
         $locationId = addslashes($locationId);
         
-        // Get connections going from this location
+        // Get connections going from this location (with destination name)
         $outgoing = $this->game->getObjectListFromDB(
-            "SELECT location_to as location_id, connection_name 
-             FROM connection WHERE location_from = '$locationId'"
+            "SELECT c.location_to as location_id, c.connection_name, l.location_name
+             FROM connection c
+             JOIN location l ON c.location_to = l.location_id
+             WHERE c.location_from = '$locationId'"
         );
 
-        // Get bidirectional connections coming to this location
+        // Get bidirectional connections coming to this location (with destination name)
         $incoming = $this->game->getObjectListFromDB(
-            "SELECT location_from as location_id, connection_name 
-             FROM connection WHERE location_to = '$locationId' AND bidirectional = 1"
+            "SELECT c.location_from as location_id, c.connection_name, l.location_name
+             FROM connection c
+             JOIN location l ON c.location_from = l.location_id
+             WHERE c.location_to = '$locationId' AND c.bidirectional = 1"
         );
 
         // Merge and deduplicate

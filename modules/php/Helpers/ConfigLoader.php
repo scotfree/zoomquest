@@ -46,8 +46,8 @@ class ConfigLoader
      */
     private function validateConfig(array $config): void
     {
-        // Required top-level keys
-        $required = ['level_name', 'map', 'players', 'monsters'];
+        // Required top-level keys (characters instead of players)
+        $required = ['level_name', 'map', 'characters', 'monsters'];
         foreach ($required as $key) {
             if (!isset($config[$key])) {
                 throw new \BgaUserException("Missing required config key: $key");
@@ -83,9 +83,9 @@ class ConfigLoader
             }
         }
 
-        // Validate players
-        foreach ($config['players'] as $player) {
-            $this->validateEntity($player, $locationIds, 'player');
+        // Validate characters (templates for player assignment)
+        foreach ($config['characters'] as $character) {
+            $this->validateEntity($character, $locationIds, 'character');
         }
 
         // Validate monsters

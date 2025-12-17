@@ -138,45 +138,56 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        // Setup player entities
+        // Setup player entities - randomly select characters for each player
         $playerIds = array_keys($players);
+        $playerCount = count($playerIds);
         $deck = $this->getDeck();
 
-        foreach ($config['players'] as $index => $playerConfig) {
-            // Assign to actual BGA player if available
-            $bgaPlayerId = $playerIds[$index] ?? null;
+        // Shuffle characters and select one for each player
+        $characters = $config['characters'];
+        shuffle($characters);
+        
+        foreach ($playerIds as $index => $bgaPlayerId) {
+            // Get character for this player (cycling if more players than characters)
+            $characterConfig = $characters[$index % count($characters)];
             
-            $name = addslashes($playerConfig['name']);
-            $class = addslashes($playerConfig['class']);
-            $location = addslashes($playerConfig['location']);
-            $playerIdSql = $bgaPlayerId ? "'$bgaPlayerId'" : 'NULL';
+            $name = addslashes($characterConfig['name']);
+            $class = addslashes($characterConfig['class']);
+            $location = addslashes($characterConfig['location']);
 
             $this->DbQuery(
                 "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, location_id, is_defeated) 
-                 VALUES ('player', $playerIdSql, '$name', '$class', '$location', 0)"
+                 VALUES ('player', '$bgaPlayerId', '$name', '$class', '$location', 0)"
             );
             $entityId = (int)$this->DbGetLastId();
 
             // Create deck from config
-            $deck->createDeck($entityId, $playerConfig['decks']['active']);
+            $deck->createDeck($entityId, $characterConfig['decks']['active']);
             $deck->shuffleActive($entityId);
         }
 
-        // Setup monster entities
+        // Setup monster entities - create copies equal to player count
         foreach ($config['monsters'] as $monsterConfig) {
             $name = addslashes($monsterConfig['name']);
             $class = addslashes($monsterConfig['class']);
             $location = addslashes($monsterConfig['location']);
 
-            $this->DbQuery(
-                "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, location_id, is_defeated) 
-                 VALUES ('monster', NULL, '$name', '$class', '$location', 0)"
-            );
-            $entityId = (int)$this->DbGetLastId();
+            // Create one monster copy per player
+            for ($i = 0; $i < $playerCount; $i++) {
+                // Add number suffix if multiple copies
+                $displayName = $playerCount > 1 ? $name . ' ' . ($i + 1) : $name;
+                $displayName = addslashes($displayName);
 
-            // Create deck from config
-            $deck->createDeck($entityId, $monsterConfig['decks']['active']);
-            $deck->shuffleActive($entityId);
+                $this->DbQuery(
+                    "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, location_id, is_defeated) 
+                     VALUES ('monster', NULL, '$displayName', '$class', '$location', 0)"
+                );
+                $entityId = (int)$this->DbGetLastId();
+
+                // Create deck from config (copy the deck for each monster)
+                $deck->createDeck($entityId, $monsterConfig['decks']['active']);
+                $deck->shuffleActive($entityId);
+            }
         }
 
         // Initialize stats
@@ -197,9 +208,9 @@ class Game extends \Bga\GameFramework\Table
     {
         $result = [];
 
-        // Basic player info
+        // Basic player info (including name for display)
         $result['players'] = $this->getCollectionFromDb(
-            "SELECT player_id id, player_score score, player_color color FROM player"
+            "SELECT player_id id, player_score score, player_color color, player_name name FROM player"
         );
 
         // Current round

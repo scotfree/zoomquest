@@ -16,15 +16,13 @@
       { "name": "Ruins Approach", "from": "mountain", "to": "ruins", "bidirectional": true }
     ]
   },
-  "players": [
+  "characters": [
     {
       "name": "Bob",
       "class": "warrior",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "attack", "attack", "attack"],
-        "discarded": [],
-        "destroyed": []
+        "active": ["attack", "attack", "attack", "attack", "attack"]
       }
     },
     {
@@ -32,9 +30,31 @@
       "class": "mage",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "defend", "defend", "heal"],
-        "discarded": [],
-        "destroyed": []
+        "active": ["attack", "attack", "defend", "defend", "heal"]
+      }
+    },
+    {
+      "name": "Charlie",
+      "class": "ranger",
+      "location": "forest",
+      "decks": {
+        "active": ["attack", "attack", "attack", "defend", "heal"]
+      }
+    },
+    {
+      "name": "Diana",
+      "class": "cleric",
+      "location": "village",
+      "decks": {
+        "active": ["defend", "defend", "heal", "heal", "attack"]
+      }
+    },
+    {
+      "name": "Erik",
+      "class": "rogue",
+      "location": "mountain",
+      "decks": {
+        "active": ["attack", "attack", "attack", "attack", "defend"]
       }
     }
   ],
@@ -44,22 +64,16 @@
       "class": "goblin",
       "location": "cave",
       "decks": {
-        "active": ["attack", "attack", "defend"],
-        "discarded": [],
-        "destroyed": []
+        "active": ["attack", "attack", "defend"]
       }
     },
     {
-      "name": "Goblin",
-      "class": "goblin",
+      "name": "Skeleton",
+      "class": "undead",
       "location": "ruins",
       "decks": {
-        "active": ["attack", "attack", "defend"],
-        "discarded": [],
-        "destroyed": []
+        "active": ["attack", "attack", "defend"]
       }
     }
   ]
 }
-
-

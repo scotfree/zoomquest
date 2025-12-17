@@ -218,12 +218,18 @@ function (dojo, declare, gamegui, counter) {
             html += '<div class="zq-entity-section"><h4>Heroes</h4>';
             players.forEach(entity => {
                 const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0 };
+                const health = counts.active + counts.discard;
                 const statusClass = entity.is_defeated == 1 ? 'zq-defeated' : '';
+                // Get player name if available
+                const playerName = entity.player_id && this.gamedatas.players[entity.player_id] 
+                    ? ` (${this.gamedatas.players[entity.player_id].name || 'Player'})` 
+                    : '';
                 html += `
                     <div class="zq-entity-info ${statusClass}">
-                        <div class="zq-entity-name">⚔️ ${entity.entity_name}</div>
+                        <div class="zq-entity-name">⚔️ ${entity.entity_name}${playerName}</div>
                         <div class="zq-entity-class">${entity.entity_class}</div>
                         <div class="zq-entity-location">📍 ${entity.location_name}</div>
+                        <div class="zq-entity-health">❤️ Health: ${health}</div>
                         <div class="zq-deck-status">
                             <span class="zq-pile-active" title="Active">🃏 ${counts.active}</span>
                             <span class="zq-pile-discard" title="Discard">📥 ${counts.discard}</span>
@@ -240,11 +246,13 @@ function (dojo, declare, gamegui, counter) {
             }
             monsters.forEach(entity => {
                 const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0 };
+                const health = counts.active + counts.discard;
                 html += `
                     <div class="zq-entity-info zq-monster">
                         <div class="zq-entity-name">🧟 ${entity.entity_name}</div>
                         <div class="zq-entity-class">${entity.entity_class}</div>
                         <div class="zq-entity-location">📍 ${entity.location_name}</div>
+                        <div class="zq-entity-health">❤️ Health: ${health}</div>
                         <div class="zq-deck-status">
                             <span class="zq-pile-active" title="Active">🃏 ${counts.active}</span>
                             <span class="zq-pile-discard" title="Discard">📥 ${counts.discard}</span>
@@ -461,8 +469,11 @@ function (dojo, declare, gamegui, counter) {
 
             let html = '';
             this.adjacentLocations.forEach(loc => {
+                // Show "Path Name to Destination" format
+                const pathName = loc.connection_name || 'Path';
+                const destName = loc.location_name || loc.location_id;
                 html += `<button class="zq-move-target-btn" data-location="${loc.location_id}">
-                    ${loc.connection_name || loc.location_id}
+                    ${pathName} to ${destName}
                 </button>`;
             });
             optionsContainer.innerHTML = html;
@@ -546,8 +557,95 @@ function (dojo, declare, gamegui, counter) {
                 const isAdjacent = this.adjacentLocations.some(loc => loc.location_id === locationId);
                 if (isAdjacent) {
                     this.onSelectMoveTarget(locationId);
+                    return;
                 }
             }
+
+            // Show location popup
+            this.showLocationPopup(locationId, e.currentTarget);
+        },
+
+        showLocationPopup: function(locationId, nodeElement) {
+            // Remove any existing popup
+            this.hideLocationPopup();
+
+            // Find location info
+            const location = this.gamedatas.map.locations.find(l => l.location_id === locationId);
+            if (!location) return;
+
+            // Determine player's current location and adjacent locations
+            const myEntity = this.getMyEntity();
+            const myLocationId = myEntity ? myEntity.location_id : null;
+            const isCurrentLocation = locationId === myLocationId;
+            const isAdjacent = this.adjacentLocations && this.adjacentLocations.some(loc => loc.location_id === locationId);
+
+            // Build action buttons
+            let actionHtml = '';
+            if (isCurrentLocation && this.isCurrentPlayerActive()) {
+                actionHtml = `<button class="zq-popup-action-btn" data-action="rest">💤 Rest</button>`;
+            } else if (isAdjacent && this.isCurrentPlayerActive()) {
+                actionHtml = `<button class="zq-popup-action-btn" data-action="move" data-location="${locationId}">🚶 Move Here</button>`;
+            }
+
+            // Create popup
+            const popup = document.createElement('div');
+            popup.id = 'zq-location-popup';
+            popup.className = 'zq-location-popup';
+            popup.innerHTML = `
+                <div class="zq-popup-close" onclick="document.getElementById('zq-location-popup').remove()">×</div>
+                <div class="zq-popup-name">${location.location_name}</div>
+                <div class="zq-popup-description">${location.location_description || ''}</div>
+                ${actionHtml ? `<div class="zq-popup-actions">${actionHtml}</div>` : ''}
+            `;
+
+            // Position popup near the node
+            const rect = nodeElement.getBoundingClientRect();
+            const container = document.getElementById('zq-map-container');
+            const containerRect = container.getBoundingClientRect();
+            
+            popup.style.left = (rect.left - containerRect.left + rect.width / 2) + 'px';
+            popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
+
+            container.appendChild(popup);
+
+            // Add action button handlers
+            popup.querySelectorAll('.zq-popup-action-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    if (action === 'rest') {
+                        this.selectedAction = 'rest';
+                        this.selectedMoveTarget = null;
+                        this.onConfirmAction();
+                    } else if (action === 'move') {
+                        this.selectedAction = 'move';
+                        this.selectedMoveTarget = e.target.dataset.location;
+                        this.onConfirmAction();
+                    }
+                    this.hideLocationPopup();
+                });
+            });
+
+            // Close popup when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', this.handlePopupOutsideClick.bind(this), { once: true });
+            }, 100);
+        },
+
+        hideLocationPopup: function() {
+            const popup = document.getElementById('zq-location-popup');
+            if (popup) popup.remove();
+        },
+
+        handlePopupOutsideClick: function(e) {
+            const popup = document.getElementById('zq-location-popup');
+            if (popup && !popup.contains(e.target) && !e.target.closest('.zq-node')) {
+                this.hideLocationPopup();
+            }
+        },
+
+        getMyEntity: function() {
+            const playerId = String(this.player_id);
+            return this.gamedatas.entities.find(e => e.player_id === playerId);
         },
 
         //
