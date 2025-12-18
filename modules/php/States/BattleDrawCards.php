@@ -13,7 +13,8 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
 /**
  * State: Battle Draw Cards (game state)
  * - Each participant draws their top card
- * - Determine resolution order (random)
+ * - Targets are assigned at this moment (snapshot)
+ * - Resolution order: Heal → Defend → Attack
  */
 class BattleDrawCards extends GameState
 {
@@ -43,7 +44,7 @@ class BattleDrawCards extends GameState
             return BattleRoundEnd::class;
         }
 
-        // Build notification data
+        // Build notification data (already sorted by resolution order in drawCardsForBattle)
         $cardData = [];
         foreach ($drawnCards as $card) {
             $cardData[] = [
@@ -51,13 +52,13 @@ class BattleDrawCards extends GameState
                 'entity_name' => $card['entity_name'],
                 'entity_type' => $card['entity_type'],
                 'card_type' => $card['card_type'],
+                'target_id' => $card['target_id'],
+                'target_name' => $card['target_name'],
                 'resolution_order' => $card['resolution_order'],
             ];
         }
 
-        usort($cardData, fn($a, $b) => $a['resolution_order'] <=> $b['resolution_order']);
-
-        $this->notify->all('battleCardsDrawn', clienttranslate('All combatants draw their cards'), [
+        $this->notify->all('battleCardsDrawn', clienttranslate('All combatants draw their cards and select targets'), [
             'battle_id' => $battleId,
             'cards' => $cardData,
         ]);

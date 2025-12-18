@@ -12,9 +12,9 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
  * State: Battle Round End (game state)
- * - Check if one team is eliminated
+ * - Check if one team is eliminated (victory/defeat)
+ * - Check if everyone is out of cards (battle ends, no winner)
  * - If battle continues, go back to draw cards
- * - If battle ends, go to cleanup
  */
 class BattleRoundEnd extends GameState
 {
@@ -37,7 +37,7 @@ class BattleRoundEnd extends GameState
 
         $battleId = (int)$stateHelper->get(STATE_CURRENT_BATTLE);
 
-        // Check if one team is eliminated
+        // Check if one team is eliminated (all defeated)
         $eliminatedTeam = $combatResolver->getEliminatedTeam($battleId);
 
         if ($eliminatedTeam) {
@@ -66,7 +66,17 @@ class BattleRoundEnd extends GameState
             return BattleCleanup::class;
         }
 
-        // Battle continues
+        // Check if everyone is out of cards (battle ends, but no winner)
+        if ($combatResolver->isEveryoneOutOfCards($battleId)) {
+            $this->notify->all('battleEnd', clienttranslate('All combatants are exhausted. The battle ends in a standoff.'), [
+                'battle_id' => $battleId,
+                'winner' => null,
+            ]);
+
+            return BattleCleanup::class;
+        }
+
+        // Battle continues - some participants still have cards
         $combatResolver->resetBattleRound($battleId);
 
         $this->notify->all('battleContinues', clienttranslate('The battle continues...'), [

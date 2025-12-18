@@ -71,6 +71,9 @@ class BattleResolveCard extends GameState
             'effect' => $resolution['effect'],
             'target_defeated' => $resolution['target_defeated'] ?? false,
             'target_deck_counts' => $targetDeckCounts,
+            'block_count' => $resolution['block_count'] ?? null,
+            'blocks_remaining' => $resolution['blocks_remaining'] ?? null,
+            'from_pile' => $resolution['from_pile'] ?? null,
         ]);
 
         // Check if target was defeated
@@ -99,17 +102,35 @@ class BattleResolveCard extends GameState
                 if ($resolution['effect'] === 'destroy') {
                     return clienttranslate('${entity_name} attacks ${target_name}!');
                 }
+                if ($resolution['effect'] === 'blocked') {
+                    return clienttranslate('${entity_name} attacks ${target_name} but is BLOCKED!');
+                }
+                if ($resolution['effect'] === 'target_defeated') {
+                    return clienttranslate('${entity_name} attacks but ${target_name} is already defeated');
+                }
+                if ($resolution['effect'] === 'no_cards') {
+                    return clienttranslate('${entity_name} attacks but ${target_name} has no cards left');
+                }
                 return clienttranslate('${entity_name} attacks but finds no target');
             case CARD_DEFEND:
-                if ($resolution['effect'] === 'defend') {
-                    return clienttranslate('${entity_name} defends ${target_name}');
+                if ($resolution['effect'] === 'block') {
+                    return clienttranslate('${entity_name} defends ${target_name} (+1 block)');
+                }
+                if ($resolution['effect'] === 'target_defeated') {
+                    return clienttranslate('${entity_name} tries to defend but ${target_name} is already defeated');
                 }
                 return clienttranslate('${entity_name} defends but finds no one to protect');
             case CARD_HEAL:
                 if ($resolution['effect'] === 'heal') {
                     return clienttranslate('${entity_name} heals ${target_name}');
                 }
-                return clienttranslate('${entity_name} tries to heal but there are no cards to recover');
+                if ($resolution['effect'] === 'no_cards_to_heal') {
+                    return clienttranslate('${entity_name} tries to heal ${target_name} but no cards to recover');
+                }
+                if ($resolution['effect'] === 'target_defeated') {
+                    return clienttranslate('${entity_name} tries to heal but ${target_name} is already defeated');
+                }
+                return clienttranslate('${entity_name} tries to heal but there is no target');
             default:
                 return clienttranslate('${entity_name} plays ${card_type}');
         }

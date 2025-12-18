@@ -393,7 +393,8 @@ function (dojo, declare, gamegui, counter) {
             document.getElementById('zq-btn-rest').addEventListener('click', () => this.onSelectRest());
             document.getElementById('zq-btn-confirm').addEventListener('click', () => this.onConfirmAction());
 
-            // Highlight adjacent nodes
+            // Highlight current location and adjacent nodes
+            this.highlightCurrentLocation(args.currentLocation.id);
             this.highlightAdjacentNodes(args.adjacentLocations);
 
             panel.style.display = 'block';
@@ -405,7 +406,7 @@ function (dojo, declare, gamegui, counter) {
 
             // Remove node highlights
             document.querySelectorAll('.zq-node').forEach(node => {
-                node.classList.remove('zq-node-adjacent', 'zq-node-selected');
+                node.classList.remove('zq-node-adjacent', 'zq-node-selected', 'zq-node-current');
             });
         },
 
@@ -440,6 +441,17 @@ function (dojo, declare, gamegui, counter) {
             document.getElementById('zq-btn-confirm').addEventListener('click', () => this.onConfirmAction());
 
             panel.style.display = 'block';
+        },
+
+        highlightCurrentLocation: function(locationId) {
+            document.querySelectorAll('.zq-node').forEach(node => {
+                node.classList.remove('zq-node-current');
+            });
+
+            const node = document.getElementById(`zq-node-${locationId}`);
+            if (node) {
+                node.classList.add('zq-node-current');
+            }
         },
 
         highlightAdjacentNodes: function(adjacentLocations) {
@@ -748,11 +760,12 @@ function (dojo, declare, gamegui, counter) {
 
             const log = document.getElementById('zq-battle-log');
             if (log) {
-                let html = '<div class="zq-cards-drawn"><strong>Cards drawn:</strong>';
+                let html = '<div class="zq-cards-drawn"><strong>Cards drawn (Heal → Defend → Attack):</strong>';
                 args.cards.forEach(card => {
                     const icon = this.getCardIcon(card.card_type);
+                    const targetText = card.target_name ? ` → ${card.target_name}` : '';
                     html += `<div class="zq-drawn-card ${card.entity_type}">
-                        ${card.entity_name}: ${icon} ${card.card_type}
+                        ${card.entity_name}: ${icon} ${card.card_type}${targetText}
                     </div>`;
                 });
                 html += '</div>';
@@ -769,23 +782,49 @@ function (dojo, declare, gamegui, counter) {
             if (log) {
                 const icon = this.getCardIcon(args.card_type);
                 let effectText = '';
+                let effectClass = '';
 
                 switch (args.effect) {
                     case 'destroy':
-                        effectText = `→ ${args.target_name} loses a card!`;
+                        const pileNote = args.from_pile === 'discard' ? ' (from discard!)' : '';
+                        effectText = `💥 ${args.target_name} loses a card${pileNote}`;
+                        effectClass = 'zq-effect-damage';
                         break;
-                    case 'defend':
-                        effectText = `→ Defending ${args.target_name}`;
+                    case 'blocked':
+                        effectText = `🛡️ BLOCKED! (${args.blocks_remaining} blocks remain)`;
+                        effectClass = 'zq-effect-blocked';
+                        break;
+                    case 'block':
+                        const blockText = args.block_count > 1 ? `${args.block_count} blocks` : '1 block';
+                        effectText = `🛡️ ${args.target_name} gains a block (${blockText} total)`;
+                        effectClass = 'zq-effect-defend';
                         break;
                     case 'heal':
-                        effectText = `→ ${args.target_name} recovers a card`;
+                        effectText = `💚 ${args.target_name} recovers a card`;
+                        effectClass = 'zq-effect-heal';
+                        break;
+                    case 'no_cards_to_heal':
+                        effectText = `💔 No cards to recover for ${args.target_name}`;
+                        effectClass = 'zq-effect-none';
+                        break;
+                    case 'no_cards':
+                        effectText = `💀 ${args.target_name} has no cards left!`;
+                        effectClass = 'zq-effect-none';
+                        break;
+                    case 'target_defeated':
+                        effectText = `💀 Target ${args.target_name || 'unknown'} already defeated`;
+                        effectClass = 'zq-effect-none';
+                        break;
+                    case 'no_target':
+                        effectText = `❌ No valid target`;
+                        effectClass = 'zq-effect-none';
                         break;
                     default:
-                        effectText = `→ No effect`;
+                        effectText = `→ ${args.effect || 'No effect'}`;
                 }
 
                 log.innerHTML += `
-                    <div class="zq-card-resolved">
+                    <div class="zq-card-resolved ${effectClass}">
                         ${icon} <strong>${args.entity_name}</strong> plays ${args.card_type} ${effectText}
                     </div>
                 `;

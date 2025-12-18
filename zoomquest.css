@@ -181,6 +181,11 @@
         0 0 20px rgba(212, 175, 55, 0.3);
 }
 
+.zq-node.zq-node-current {
+    border-color: var(--zq-accent-gold);
+    animation: pulse-gold 1.5s infinite;
+}
+
 .zq-node.zq-node-adjacent {
     border-color: var(--zq-accent-green);
     animation: pulse-green 2s infinite;
@@ -191,6 +196,15 @@
     box-shadow: 
         0 0 20px var(--zq-node-highlight),
         0 0 40px rgba(255, 215, 0, 0.4);
+}
+
+@keyframes pulse-gold {
+    0%, 100% { 
+        box-shadow: 0 0 12px rgba(212, 175, 55, 0.6), 0 0 24px rgba(255, 215, 0, 0.3); 
+    }
+    50% { 
+        box-shadow: 0 0 30px rgba(212, 175, 55, 1), 0 0 50px rgba(255, 215, 0, 0.6); 
+    }
 }
 
 @keyframes pulse-green {
@@ -594,6 +608,30 @@
 .zq-battle-continues {
     color: var(--zq-text-secondary);
     text-align: center;
+    font-style: italic;
+}
+
+/* Combat effect colors */
+.zq-effect-damage {
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
+.zq-effect-blocked {
+    color: #74b9ff;
+    font-weight: bold;
+}
+
+.zq-effect-defend {
+    color: #74b9ff;
+}
+
+.zq-effect-heal {
+    color: #55efc4;
+}
+
+.zq-effect-none {
+    color: var(--zq-text-secondary);
     font-style: italic;
 }
 

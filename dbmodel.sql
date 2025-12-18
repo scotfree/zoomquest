@@ -75,7 +75,9 @@ CREATE TABLE IF NOT EXISTS `battle_participant` (
   `battle_id` int(10) unsigned NOT NULL,
   `entity_id` int(10) unsigned NOT NULL,
   `drawn_card_id` int(10) unsigned DEFAULT NULL,
+  `target_entity_id` int(10) unsigned DEFAULT NULL,
   `resolution_order` int(10) unsigned DEFAULT NULL,
+  `block_count` int(10) unsigned NOT NULL DEFAULT 0,
   `is_resolved` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`battle_id`, `entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

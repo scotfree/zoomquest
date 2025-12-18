@@ -8,11 +8,24 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
  * Handles combat resolution logic
+ * 
+ * Combat is simultaneous with ordered resolution:
+ * 1. All cards are drawn and targets are assigned (snapshot)
+ * 2. Resolution order: Heal → Defend → Attack
+ * 3. Defend grants blocks that absorb attacks
+ * 4. Blocks expire at end of round
  */
 class CombatResolver
 {
     private $game;
     private Deck $deck;
+
+    // Resolution order by card type (lower = resolves first)
+    private const RESOLUTION_ORDER = [
+        CARD_HEAL => 0,
+        CARD_DEFEND => 1,
+        CARD_ATTACK => 2,
+    ];
 
     public function __construct($game, Deck $deck)
     {
@@ -34,7 +47,6 @@ class CombatResolver
 
     /**
      * Check if a battle should occur at a location
-     * (any entity chose 'battle' action)
      */
     public function shouldBattleOccur(string $locationId): bool
     {
@@ -43,7 +55,6 @@ class CombatResolver
             return false;
         }
 
-        // Check if any entity chose battle
         $entityIds = array_column($entities, 'entity_id');
         $entityIdList = implode(',', $entityIds);
 
@@ -60,7 +71,6 @@ class CombatResolver
      */
     public function getBattleLocations(): array
     {
-        // Get all locations with 2+ entities where at least one chose battle
         $locations = $this->game->getObjectListFromDB("SELECT DISTINCT location_id FROM entity WHERE is_defeated = 0");
         
         $battleLocations = [];
@@ -70,14 +80,12 @@ class CombatResolver
             }
         }
 
-        // Shuffle for random resolution order
         shuffle($battleLocations);
         return $battleLocations;
     }
 
     /**
      * Create a battle record and initialize participants
-     * @return int The battle ID
      */
     public function createBattle(string $locationId): int
     {
@@ -86,13 +94,12 @@ class CombatResolver
         );
         $battleId = (int)$this->game->DbGetLastId();
 
-        // Add all entities at this location as participants
         $entities = $this->getEntitiesAtLocation($locationId);
         foreach ($entities as $entity) {
             $entityId = $entity['entity_id'];
             $this->game->DbQuery(
-                "INSERT INTO battle_participant (battle_id, entity_id, drawn_card_id, resolution_order, is_resolved) 
-                 VALUES ($battleId, $entityId, NULL, NULL, 0)"
+                "INSERT INTO battle_participant (battle_id, entity_id, drawn_card_id, target_entity_id, resolution_order, block_count, is_resolved) 
+                 VALUES ($battleId, $entityId, NULL, NULL, NULL, 0, 0)"
             );
         }
 
@@ -100,11 +107,70 @@ class CombatResolver
     }
 
     /**
-     * Have all participants draw their top card and determine resolution order
-     * @return array Drawn cards with resolution order
+     * Calculate health for an entity (active + discard pile count)
+     */
+    private function getEntityHealth(int $entityId): int
+    {
+        $counts = $this->deck->getPileCounts($entityId);
+        return $counts['active'] + $counts['discard'];
+    }
+
+    /**
+     * Get lowest health target of a given type, random on ties
+     * @param int $battleId The battle
+     * @param string $entityType 'player' or 'monster'
+     * @param bool $includeSelf If true, include the requesting entity
+     * @param int|null $selfEntityId The entity requesting (for self-inclusion check)
+     * @return array|null The target entity or null
+     */
+    private function getLowestHealthTarget(int $battleId, string $entityType, bool $includeSelf = true, ?int $selfEntityId = null): ?array
+    {
+        $entities = $this->game->getObjectListFromDB(
+            "SELECT e.entity_id, e.entity_name
+             FROM battle_participant bp
+             JOIN entity e ON bp.entity_id = e.entity_id
+             WHERE bp.battle_id = $battleId 
+               AND e.entity_type = '$entityType'
+               AND e.is_defeated = 0"
+        );
+
+        if (empty($entities)) {
+            return null;
+        }
+
+        // Calculate health for each and find minimum
+        $lowestHealth = PHP_INT_MAX;
+        $candidates = [];
+
+        foreach ($entities as $entity) {
+            $health = $this->getEntityHealth((int)$entity['entity_id']);
+            if ($health < $lowestHealth) {
+                $lowestHealth = $health;
+                $candidates = [$entity];
+            } elseif ($health === $lowestHealth) {
+                $candidates[] = $entity;
+            }
+        }
+
+        // Random selection among ties
+        if (count($candidates) > 1) {
+            shuffle($candidates);
+        }
+
+        return $candidates[0] ?? null;
+    }
+
+    /**
+     * Draw cards for all participants and assign targets (snapshot)
+     * Resolution order is by card type: Heal (0) → Defend (1) → Attack (2)
      */
     public function drawCardsForBattle(int $battleId): array
     {
+        // Reset block counts at start of round
+        $this->game->DbQuery(
+            "UPDATE battle_participant SET block_count = 0 WHERE battle_id = $battleId"
+        );
+
         // Get non-defeated participants
         $participants = $this->game->getObjectListFromDB(
             "SELECT bp.entity_id, e.entity_type, e.entity_name 
@@ -120,43 +186,83 @@ class CombatResolver
 
             if ($card) {
                 $cardId = (int)$card['card_id'];
+                $cardType = $card['card_type'];
+
+                // Determine target based on card type (snapshot at draw time)
+                $targetId = $this->determineTarget($battleId, $entityId, $p['entity_type'], $cardType);
+
+                // Get resolution order based on card type
+                $resolutionOrder = self::RESOLUTION_ORDER[$cardType] ?? 99;
+
                 $this->game->DbQuery(
-                    "UPDATE battle_participant SET drawn_card_id = $cardId, is_resolved = 0 
+                    "UPDATE battle_participant 
+                     SET drawn_card_id = $cardId, 
+                         target_entity_id = " . ($targetId !== null ? $targetId : "NULL") . ",
+                         resolution_order = $resolutionOrder,
+                         is_resolved = 0 
                      WHERE battle_id = $battleId AND entity_id = $entityId"
                 );
+
+                // Get target name for notification
+                $targetName = null;
+                if ($targetId !== null) {
+                    $target = $this->game->getObjectFromDB(
+                        "SELECT entity_name FROM entity WHERE entity_id = $targetId"
+                    );
+                    $targetName = $target ? $target['entity_name'] : null;
+                }
 
                 $drawnCards[] = [
                     'entity_id' => $entityId,
                     'entity_type' => $p['entity_type'],
                     'entity_name' => $p['entity_name'],
                     'card_id' => $cardId,
-                    'card_type' => $card['card_type'],
+                    'card_type' => $cardType,
+                    'target_id' => $targetId,
+                    'target_name' => $targetName,
+                    'resolution_order' => $resolutionOrder,
                 ];
             }
         }
 
-        // Assign random resolution order
-        shuffle($drawnCards);
-        foreach ($drawnCards as $order => $card) {
-            $entityId = $card['entity_id'];
-            $this->game->DbQuery(
-                "UPDATE battle_participant SET resolution_order = $order 
-                 WHERE battle_id = $battleId AND entity_id = $entityId"
-            );
-            $drawnCards[$order]['resolution_order'] = $order;
-        }
+        // Sort by resolution order for display
+        usort($drawnCards, fn($a, $b) => $a['resolution_order'] <=> $b['resolution_order']);
 
         return $drawnCards;
     }
 
     /**
-     * Get the next card to resolve in the current battle round
-     * @return array|null The next card to resolve or null if all resolved
+     * Determine target for a card based on type
+     * - Heal/Defend: Lowest health ally (including self)
+     * - Attack: Lowest health enemy
+     */
+    private function determineTarget(int $battleId, int $entityId, string $entityType, string $cardType): ?int
+    {
+        switch ($cardType) {
+            case CARD_HEAL:
+            case CARD_DEFEND:
+                // Target lowest health ally (same type as self)
+                $target = $this->getLowestHealthTarget($battleId, $entityType, true, $entityId);
+                return $target ? (int)$target['entity_id'] : null;
+
+            case CARD_ATTACK:
+                // Target lowest health enemy (opposite type)
+                $targetType = ($entityType === ENTITY_PLAYER) ? ENTITY_MONSTER : ENTITY_PLAYER;
+                $target = $this->getLowestHealthTarget($battleId, $targetType, false, null);
+                return $target ? (int)$target['entity_id'] : null;
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Get the next card to resolve (ordered by card type)
      */
     public function getNextCardToResolve(int $battleId): ?array
     {
         $result = $this->game->getObjectFromDB(
-            "SELECT bp.entity_id, bp.drawn_card_id, bp.resolution_order,
+            "SELECT bp.entity_id, bp.drawn_card_id, bp.target_entity_id, bp.resolution_order,
                     e.entity_type, e.entity_name, c.card_type
              FROM battle_participant bp
              JOIN entity e ON bp.entity_id = e.entity_id
@@ -164,8 +270,7 @@ class CombatResolver
              WHERE bp.battle_id = $battleId 
                AND bp.is_resolved = 0 
                AND bp.drawn_card_id IS NOT NULL
-               AND e.is_defeated = 0
-             ORDER BY bp.resolution_order ASC
+             ORDER BY bp.resolution_order ASC, bp.entity_id ASC
              LIMIT 1"
         );
 
@@ -174,7 +279,6 @@ class CombatResolver
 
     /**
      * Resolve a single card's effect
-     * @return array Resolution details for notification
      */
     public function resolveCard(int $battleId, int $entityId, int $cardId, string $cardType): array
     {
@@ -193,15 +297,22 @@ class CombatResolver
         $result['entity_name'] = $entity['entity_name'];
         $result['entity_type'] = $entity['entity_type'];
 
+        // Get the pre-assigned target
+        $participant = $this->game->getObjectFromDB(
+            "SELECT target_entity_id FROM battle_participant 
+             WHERE battle_id = $battleId AND entity_id = $entityId"
+        );
+        $targetId = $participant['target_entity_id'] ? (int)$participant['target_entity_id'] : null;
+
         switch ($cardType) {
-            case CARD_ATTACK:
-                $result = $this->resolveAttack($battleId, $entityId, $result);
+            case CARD_HEAL:
+                $result = $this->resolveHeal($battleId, $entityId, $targetId, $result);
                 break;
             case CARD_DEFEND:
-                $result = $this->resolveDefend($battleId, $entityId, $result);
+                $result = $this->resolveDefend($battleId, $entityId, $targetId, $result);
                 break;
-            case CARD_HEAL:
-                $result = $this->resolveHeal($battleId, $entityId, $result);
+            case CARD_ATTACK:
+                $result = $this->resolveAttack($battleId, $entityId, $targetId, $result);
                 break;
         }
 
@@ -218,134 +329,140 @@ class CombatResolver
     }
 
     /**
-     * Resolve attack: destroy one card from target's active deck
+     * Resolve heal: recover one card from target's destroyed pile
      */
-    private function resolveAttack(int $battleId, int $attackerId, array $result): array
+    private function resolveHeal(int $battleId, int $healerId, ?int $targetId, array $result): array
     {
-        // Get attacker type to determine target team
-        $attacker = $this->game->getObjectFromDB(
-            "SELECT entity_type FROM entity WHERE entity_id = $attackerId"
+        if ($targetId === null) {
+            $result['effect'] = 'no_target';
+            return $result;
+        }
+
+        // Check target is still alive
+        $target = $this->game->getObjectFromDB(
+            "SELECT entity_name, is_defeated FROM entity WHERE entity_id = $targetId"
         );
+        
+        if (!$target || $target['is_defeated'] == 1) {
+            $result['effect'] = 'target_defeated';
+            return $result;
+        }
 
-        // Target the enemy with smallest active deck
-        $targetType = ($attacker['entity_type'] === ENTITY_PLAYER) ? ENTITY_MONSTER : ENTITY_PLAYER;
-        $target = $this->getSmallestDeckTarget($battleId, $targetType);
-
-        if ($target) {
-            $targetId = (int)$target['entity_id'];
-            $destroyedCard = $this->deck->destroyRandomActive($targetId);
+        $healedCard = $this->deck->healOne($targetId);
 
             $result['target_id'] = $targetId;
             $result['target_name'] = $target['entity_name'];
+        $result['effect'] = $healedCard ? 'heal' : 'no_cards_to_heal';
+        $result['healed_card'] = $healedCard;
+
+        return $result;
+    }
+
+    /**
+     * Resolve defend: give target +1 block
+     */
+    private function resolveDefend(int $battleId, int $defenderId, ?int $targetId, array $result): array
+    {
+        if ($targetId === null) {
+            $result['effect'] = 'no_target';
+            return $result;
+        }
+
+        // Check target is still alive
+        $target = $this->game->getObjectFromDB(
+            "SELECT entity_name, is_defeated FROM entity WHERE entity_id = $targetId"
+        );
+        
+        if (!$target || $target['is_defeated'] == 1) {
+            $result['effect'] = 'target_defeated';
+        return $result;
+    }
+
+        // Add block to target
+        $this->game->DbQuery(
+            "UPDATE battle_participant SET block_count = block_count + 1 
+             WHERE battle_id = $battleId AND entity_id = $targetId"
+        );
+
+            $result['target_id'] = $targetId;
+            $result['target_name'] = $target['entity_name'];
+        $result['effect'] = 'block';
+
+        // Get new block count for notification
+        $blockCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT block_count FROM battle_participant 
+             WHERE battle_id = $battleId AND entity_id = $targetId"
+        );
+        $result['block_count'] = $blockCount;
+
+        return $result;
+    }
+
+    /**
+     * Resolve attack: check for blocks, then destroy a card
+     */
+    private function resolveAttack(int $battleId, int $attackerId, ?int $targetId, array $result): array
+    {
+        if ($targetId === null) {
+            $result['effect'] = 'no_target';
+            return $result;
+        }
+
+        // Check target is still alive
+        $target = $this->game->getObjectFromDB(
+            "SELECT entity_name, is_defeated FROM entity WHERE entity_id = $targetId"
+        );
+        
+        if (!$target || $target['is_defeated'] == 1) {
+            $result['effect'] = 'target_defeated';
+            $result['target_id'] = $targetId;
+            $result['target_name'] = $target ? $target['entity_name'] : 'Unknown';
+            return $result;
+        }
+
+        $result['target_id'] = $targetId;
+        $result['target_name'] = $target['entity_name'];
+
+        // Check for blocks
+        $blockCount = (int)$this->game->getUniqueValueFromDB(
+            "SELECT block_count FROM battle_participant 
+             WHERE battle_id = $battleId AND entity_id = $targetId"
+        );
+
+        if ($blockCount > 0) {
+            // Attack is blocked!
+            $this->game->DbQuery(
+                "UPDATE battle_participant SET block_count = block_count - 1 
+                 WHERE battle_id = $battleId AND entity_id = $targetId"
+            );
+            $result['effect'] = 'blocked';
+            $result['blocks_remaining'] = $blockCount - 1;
+            return $result;
+        }
+
+        // No block - destroy a card (tries active first, then discard)
+        $destroyedCard = $this->deck->destroyOneCard($targetId);
+
+        if ($destroyedCard) {
             $result['effect'] = 'destroy';
             $result['destroyed_card'] = $destroyedCard;
+            $result['from_pile'] = $destroyedCard['from_pile'] ?? 'active';
 
-            // Check if target is now defeated
+            // Check if target is now defeated (no cards in active or discard)
             if ($this->deck->isDefeated($targetId)) {
                 $this->game->DbQuery("UPDATE entity SET is_defeated = 1 WHERE entity_id = $targetId");
                 $result['target_defeated'] = true;
             }
         } else {
-            $result['effect'] = 'no_target';
+            // No cards to destroy - target already defeated
+            $result['effect'] = 'no_cards';
         }
 
         return $result;
     }
 
     /**
-     * Resolve defend: mark this entity as defended
-     * (For now, defend doesn't have an active effect - it just goes to discard)
-     * Future: could block the next incoming attack
-     */
-    private function resolveDefend(int $battleId, int $defenderId, array $result): array
-    {
-        // Get defender type to determine who to defend
-        $defender = $this->game->getObjectFromDB(
-            "SELECT entity_type FROM entity WHERE entity_id = $defenderId"
-        );
-
-        // Defend targets ally with smallest deck
-        $targetType = $defender['entity_type'];
-        $target = $this->getSmallestDeckTarget($battleId, $targetType);
-
-        if ($target) {
-            $result['target_id'] = (int)$target['entity_id'];
-            $result['target_name'] = $target['entity_name'];
-            $result['effect'] = 'defend';
-            // TODO: Implement actual defend blocking logic
-            // For now, defend just goes to discard without effect
-        } else {
-            $result['effect'] = 'no_target';
-        }
-
-        return $result;
-    }
-
-    /**
-     * Resolve heal: recover one card from target's destroyed pile
-     */
-    private function resolveHeal(int $battleId, int $healerId, array $result): array
-    {
-        // Get healer type to determine who to heal
-        $healer = $this->game->getObjectFromDB(
-            "SELECT entity_type FROM entity WHERE entity_id = $healerId"
-        );
-
-        // Heal targets ally with smallest deck
-        $targetType = $healer['entity_type'];
-        $target = $this->getSmallestDeckTarget($battleId, $targetType);
-
-        if ($target) {
-            $targetId = (int)$target['entity_id'];
-            $healedCard = $this->deck->healOne($targetId);
-
-            $result['target_id'] = $targetId;
-            $result['target_name'] = $target['entity_name'];
-            $result['effect'] = $healedCard ? 'heal' : 'no_cards_to_heal';
-            $result['healed_card'] = $healedCard;
-        } else {
-            $result['effect'] = 'no_target';
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get the target with smallest active deck of a given type
-     */
-    private function getSmallestDeckTarget(int $battleId, string $entityType): ?array
-    {
-        // Get all non-defeated entities of this type in the battle
-        $entities = $this->game->getObjectListFromDB(
-            "SELECT e.entity_id, e.entity_name
-             FROM battle_participant bp
-             JOIN entity e ON bp.entity_id = e.entity_id
-             WHERE bp.battle_id = $battleId 
-               AND e.entity_type = '$entityType'
-               AND e.is_defeated = 0"
-        );
-
-        if (empty($entities)) {
-            return null;
-        }
-
-        // Find the one with smallest active deck
-        $smallestCount = PHP_INT_MAX;
-        $target = null;
-
-        foreach ($entities as $entity) {
-            $counts = $this->deck->getPileCounts((int)$entity['entity_id']);
-            if ($counts['active'] < $smallestCount) {
-                $smallestCount = $counts['active'];
-                $target = $entity;
-            }
-        }
-
-        return $target;
-    }
-
-    /**
-     * Check if a battle round is complete (all cards resolved)
+     * Check if a battle round is complete
      */
     public function isBattleRoundComplete(int $battleId): bool
     {
@@ -354,8 +471,7 @@ class CombatResolver
              JOIN entity e ON bp.entity_id = e.entity_id
              WHERE bp.battle_id = $battleId 
                AND bp.is_resolved = 0 
-               AND bp.drawn_card_id IS NOT NULL
-               AND e.is_defeated = 0"
+               AND bp.drawn_card_id IS NOT NULL"
         );
 
         return $unresolved === 0;
@@ -363,11 +479,9 @@ class CombatResolver
 
     /**
      * Check if one team is eliminated
-     * @return string|null 'players', 'monsters', or null if battle continues
      */
     public function getEliminatedTeam(int $battleId): ?string
     {
-        // Get participants by type
         $participants = $this->game->getObjectListFromDB(
             "SELECT e.entity_type, e.is_defeated
              FROM battle_participant bp
@@ -399,29 +513,37 @@ class CombatResolver
     }
 
     /**
-     * Clean up after a battle ends
+     * Check if all non-defeated participants have empty active piles
+     * Battle ends when no one can draw cards
      */
-    public function endBattle(int $battleId): void
+    public function isEveryoneOutOfCards(int $battleId): bool
     {
-        // Get surviving participants
-        $survivors = $this->game->getObjectListFromDB(
+        $participants = $this->game->getObjectListFromDB(
             "SELECT bp.entity_id
              FROM battle_participant bp
              JOIN entity e ON bp.entity_id = e.entity_id
              WHERE bp.battle_id = $battleId AND e.is_defeated = 0"
         );
 
-        // Shuffle discard into active for survivors
-        foreach ($survivors as $survivor) {
-            $this->deck->shuffleDiscardIntoActive((int)$survivor['entity_id']);
+        foreach ($participants as $p) {
+            if ($this->deck->hasActiveCards((int)$p['entity_id'])) {
+                return false;
+            }
         }
 
-        // Mark battle as resolved
-        $this->game->DbQuery("UPDATE battle SET is_resolved = 1 WHERE battle_id = $battleId");
+        return true;
+    }
 
-        // Clear drawn cards for next battle round (if any)
+    /**
+     * Clean up after a battle ends
+     * Note: No automatic shuffle - cards stay in discard until Rest action
+     */
+    public function endBattle(int $battleId): void
+    {
+        $this->game->DbQuery("UPDATE battle SET is_resolved = 1 WHERE battle_id = $battleId");
         $this->game->DbQuery(
-            "UPDATE battle_participant SET drawn_card_id = NULL, resolution_order = NULL, is_resolved = 0 
+            "UPDATE battle_participant 
+             SET drawn_card_id = NULL, target_entity_id = NULL, resolution_order = NULL, block_count = 0, is_resolved = 0 
              WHERE battle_id = $battleId"
         );
     }
@@ -432,9 +554,9 @@ class CombatResolver
     public function resetBattleRound(int $battleId): void
     {
         $this->game->DbQuery(
-            "UPDATE battle_participant SET drawn_card_id = NULL, resolution_order = NULL, is_resolved = 0 
+            "UPDATE battle_participant 
+             SET drawn_card_id = NULL, target_entity_id = NULL, resolution_order = NULL, block_count = 0, is_resolved = 0 
              WHERE battle_id = $battleId"
         );
     }
 }
-

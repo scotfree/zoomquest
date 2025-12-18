@@ -60,13 +60,11 @@ class Deck
 
     /**
      * Draw the top card from active deck
+     * Returns null if active deck is empty (no auto-reshuffle)
      * @return array|null The drawn card or null if deck is empty
      */
     public function drawTop(int $entityId): ?array
     {
-        // First check if we need to reshuffle
-        $this->checkReshuffle($entityId);
-
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type FROM card 
              WHERE entity_id = $entityId AND card_pile = 'active' 
@@ -77,22 +75,14 @@ class Deck
     }
 
     /**
-     * Check if active deck is empty and reshuffle discard if needed
+     * Check if entity has cards in active pile
      */
-    private function checkReshuffle(int $entityId): void
+    public function hasActiveCards(int $entityId): bool
     {
-        $activeCount = (int)$this->game->getUniqueValueFromDB(
+        $count = (int)$this->game->getUniqueValueFromDB(
             "SELECT COUNT(*) FROM card WHERE entity_id = $entityId AND card_pile = 'active'"
         );
-
-        if ($activeCount === 0) {
-            // Move all discard to active
-            $this->game->DbQuery(
-                "UPDATE card SET card_pile = 'active' WHERE entity_id = $entityId AND card_pile = 'discard'"
-            );
-            // Shuffle the new active deck
-            $this->shuffleActive($entityId);
-        }
+        return $count > 0;
     }
 
     /**
@@ -143,11 +133,12 @@ class Deck
     }
 
     /**
-     * Destroy a random card from active deck (attack effect)
-     * @return array|null The destroyed card or null if no active cards
+     * Destroy a random card - tries active pile first, then discard pile
+     * @return array|null The destroyed card with 'from_pile' key, or null if no cards
      */
-    public function destroyRandomActive(int $entityId): ?array
+    public function destroyOneCard(int $entityId): ?array
     {
+        // Try active pile first
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type FROM card 
              WHERE entity_id = $entityId AND card_pile = 'active' 
@@ -156,9 +147,24 @@ class Deck
 
         if ($card) {
             $this->destroy((int)$card['card_id']);
+            $card['from_pile'] = 'active';
+            return $card;
         }
 
-        return $card;
+        // Try discard pile
+        $card = $this->game->getObjectFromDB(
+            "SELECT card_id, card_type FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'discard' 
+             ORDER BY RAND() LIMIT 1"
+        );
+
+        if ($card) {
+            $this->destroy((int)$card['card_id']);
+            $card['from_pile'] = 'discard';
+            return $card;
+        }
+
+        return null;
     }
 
     /**
