@@ -67,12 +67,23 @@ class GameStateHelper
      */
     public function getAllEntities(): array
     {
-        return $this->game->getObjectListFromDB(
+        $entities = $this->game->getObjectListFromDB(
             "SELECT e.*, l.location_name 
              FROM entity e 
              JOIN location l ON e.location_id = l.location_id
              ORDER BY e.entity_type, e.entity_id"
         );
+
+        // Add tags to each entity
+        foreach ($entities as &$entity) {
+            $entityId = (int)$entity['entity_id'];
+            $tags = $this->game->getObjectListFromDB(
+                "SELECT tag_name, tag_value FROM entity_tag WHERE entity_id = $entityId"
+            );
+            $entity['tags'] = $tags;
+        }
+
+        return $entities;
     }
 
     /**

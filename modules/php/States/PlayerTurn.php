@@ -10,7 +10,7 @@ use Bga\Games\Zoomquest\Game;
 
 /**
  * Placeholder state to override BGA's auto-generated PlayerTurn state.
- * This game uses ActionSelection (multipleactiveplayer) instead of the
+ * This game uses MoveSelection (multipleactiveplayer) instead of the
  * traditional PlayerTurn flow, but we need this to satisfy the framework.
  */
 class PlayerTurn extends GameState

@@ -33,19 +33,30 @@ CREATE TABLE IF NOT EXISTS `entity` (
   `player_id` int(10) unsigned DEFAULT NULL,
   `entity_name` varchar(64) NOT NULL,
   `entity_class` varchar(32) NOT NULL,
+  `faction` varchar(32) NOT NULL DEFAULT 'neutral',
   `location_id` varchar(32) NOT NULL,
   `is_defeated` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`entity_id`),
   KEY (`player_id`),
   KEY (`location_id`),
-  KEY (`entity_type`)
+  KEY (`entity_type`),
+  KEY (`faction`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+
+-- Entity tags (temporary status effects)
+CREATE TABLE IF NOT EXISTS `entity_tag` (
+  `entity_id` int(10) unsigned NOT NULL,
+  `tag_name` varchar(32) NOT NULL,
+  `tag_value` int(10) NOT NULL DEFAULT 1,
+  `round_applied` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`entity_id`, `tag_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Cards (belong to entity decks)
 CREATE TABLE IF NOT EXISTS `card` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `entity_id` int(10) unsigned NOT NULL,
-  `card_type` enum('attack','defend','heal') NOT NULL,
+  `card_type` enum('attack','defend','heal','sneak','watch','shuffle') NOT NULL,
   `card_pile` enum('active','discard','destroyed') NOT NULL DEFAULT 'active',
   `card_order` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`card_id`),
@@ -53,33 +64,32 @@ CREATE TABLE IF NOT EXISTS `card` (
   KEY (`card_pile`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
--- Action choices for the current round (cleared each round)
-CREATE TABLE IF NOT EXISTS `action_choice` (
-  `entity_id` int(10) unsigned NOT NULL,
-  `action_type` enum('move','battle','rest') NOT NULL,
+-- Movement choices for the current round (cleared each round)
+CREATE TABLE IF NOT EXISTS `move_choice` (
+  `player_id` int(10) unsigned NOT NULL,
   `target_location` varchar(32) DEFAULT NULL,
-  PRIMARY KEY (`entity_id`)
+  `card_order` text DEFAULT NULL,
+  PRIMARY KEY (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Battle state (tracks ongoing battles)
-CREATE TABLE IF NOT EXISTS `battle` (
-  `battle_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+-- Action sequence state (tracks ongoing action sequences at locations)
+CREATE TABLE IF NOT EXISTS `action_sequence` (
+  `sequence_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `location_id` varchar(32) NOT NULL,
   `is_resolved` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`battle_id`),
+  PRIMARY KEY (`sequence_id`),
   KEY (`location_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
--- Battle participants and their drawn cards
-CREATE TABLE IF NOT EXISTS `battle_participant` (
-  `battle_id` int(10) unsigned NOT NULL,
+-- Action sequence participants and their drawn cards
+CREATE TABLE IF NOT EXISTS `sequence_participant` (
+  `sequence_id` int(10) unsigned NOT NULL,
   `entity_id` int(10) unsigned NOT NULL,
   `drawn_card_id` int(10) unsigned DEFAULT NULL,
   `target_entity_id` int(10) unsigned DEFAULT NULL,
-  `resolution_order` int(10) unsigned DEFAULT NULL,
   `block_count` int(10) unsigned NOT NULL DEFAULT 0,
   `is_resolved` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`battle_id`, `entity_id`)
+  PRIMARY KEY (`sequence_id`, `entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Game state tracking

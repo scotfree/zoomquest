@@ -115,7 +115,7 @@ class ConfigLoader
         }
 
         // Validate card types
-        $validCards = ['attack', 'defend', 'heal'];
+        $validCards = ['attack', 'defend', 'heal', 'sneak', 'watch', 'shuffle'];
         foreach ($entity['decks']['active'] as $card) {
             if (!in_array($card, $validCards)) {
                 throw new \BgaUserException("Invalid card type: $card");

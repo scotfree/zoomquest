@@ -75,8 +75,9 @@ function (dojo, declare, gamegui, counter) {
             gameArea.insertAdjacentHTML('beforeend', `
                 <div id="zq-container">
                     <div id="zq-round-display" class="zq-panel">
-                        <span class="zq-label">Round:</span>
+                        <span class="zq-label">Round</span>
                         <span id="zq-round-number">${this.gamedatas.round}</span>
+                        <span id="zq-round-location"></span>
                     </div>
                     <div id="zq-map-container">
                         <svg id="zq-map-svg"></svg>
@@ -86,13 +87,19 @@ function (dojo, declare, gamegui, counter) {
                         <h3>Combatants</h3>
                         <div id="zq-entity-list"></div>
                     </div>
-                    <div id="zq-battle-panel" class="zq-panel" style="display: none;">
+                    <div id="zq-bottom-panels">
+                        <div id="zq-action-panel" class="zq-panel">
+                            <h3>Choose Action</h3>
+                            <div id="zq-action-buttons">
+                                <div class="zq-no-action">Waiting for turn...</div>
+                            </div>
+                        </div>
+                        <div id="zq-battle-panel" class="zq-panel">
                         <h3>⚔️ Battle</h3>
-                        <div id="zq-battle-content"></div>
+                            <div id="zq-battle-content">
+                                <div class="zq-no-battle">No active battle</div>
                     </div>
-                    <div id="zq-action-panel" class="zq-panel" style="display: none;">
-                        <h3>Choose Action</h3>
-                        <div id="zq-action-buttons"></div>
+                        </div>
                     </div>
                 </div>
             `);
@@ -224,9 +231,12 @@ function (dojo, declare, gamegui, counter) {
                 const playerName = entity.player_id && this.gamedatas.players[entity.player_id] 
                     ? ` (${this.gamedatas.players[entity.player_id].name || 'Player'})` 
                     : '';
+                // Build tags display
+                const tags = entity.tags || [];
+                const tagHtml = tags.map(t => this.getTagIcon(t.tag_name)).join(' ');
                 html += `
-                    <div class="zq-entity-info ${statusClass}">
-                        <div class="zq-entity-name">⚔️ ${entity.entity_name}${playerName}</div>
+                    <div class="zq-entity-info ${statusClass}" data-faction="${entity.faction || 'players'}">
+                        <div class="zq-entity-name">⚔️ ${entity.entity_name}${playerName} ${tagHtml}</div>
                         <div class="zq-entity-class">${entity.entity_class}</div>
                         <div class="zq-entity-location">📍 ${entity.location_name}</div>
                         <div class="zq-entity-health">❤️ Health: ${health}</div>
@@ -247,10 +257,13 @@ function (dojo, declare, gamegui, counter) {
             monsters.forEach(entity => {
                 const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0 };
                 const health = counts.active + counts.discard;
+                // Build tags display
+                const tags = entity.tags || [];
+                const tagHtml = tags.map(t => this.getTagIcon(t.tag_name)).join(' ');
                 html += `
-                    <div class="zq-entity-info zq-monster">
-                        <div class="zq-entity-name">🧟 ${entity.entity_name}</div>
-                        <div class="zq-entity-class">${entity.entity_class}</div>
+                    <div class="zq-entity-info zq-monster" data-faction="${entity.faction || 'monsters'}">
+                        <div class="zq-entity-name">🧟 ${entity.entity_name} ${tagHtml}</div>
+                        <div class="zq-entity-class">${entity.entity_class} <span class="zq-faction-badge">${entity.faction || 'unknown'}</span></div>
                         <div class="zq-entity-location">📍 ${entity.location_name}</div>
                         <div class="zq-entity-health">❤️ Health: ${health}</div>
                         <div class="zq-deck-status">
@@ -277,44 +290,39 @@ function (dojo, declare, gamegui, counter) {
             console.log('isCurrentPlayerActive:', this.isCurrentPlayerActive());
 
             switch (stateName) {
-                case 'ActionSelection':
+                case 'MoveSelection':
                     // For multiactive states, check if this player is in the multiactive list
                     const isMultiactive = args.multiactive && args.multiactive.includes(String(this.player_id));
                     const isActive = this.isCurrentPlayerActive() || isMultiactive;
-                    console.log('ActionSelection state - isCurrentPlayerActive:', this.isCurrentPlayerActive(), 
-                                'isMultiactive:', isMultiactive, 'multiactive list:', args.multiactive);
+                    console.log('MoveSelection state - isActive:', isActive);
                     
                     if (isActive) {
-                        // player_id might be number, but object keys are strings
                         const playerId = String(this.player_id);
-                        console.log('Looking for player:', playerId, 'in playerData:', args.args?.playerData);
-                        
-                        let myArgs = null;
-                        
-                        // Look for player data in args.args.playerData[playerId]
-                        if (args.args?.playerData?.[playerId]) {
-                            myArgs = args.args.playerData[playerId];
-                            console.log('Found args in playerData[playerId]:', myArgs);
-                        }
+                        let myArgs = args.args?.playerData?.[playerId];
                         
                         if (myArgs && myArgs.currentLocation) {
-                            this.showActionSelectionUI(myArgs);
+                            this.showMoveSelectionUI(myArgs);
+                            this.updateRoundLocation(myArgs.currentLocation.name);
                         } else {
-                            console.log('No valid player args found. args.args:', args.args);
-                            // Show a basic UI even without full args
-                            this.showBasicActionUI();
+                            console.log('No valid player args found');
+                            this.updateRoundLocation(null);
                         }
-                    } else {
-                        console.log('Player not active in this state');
                     }
                     break;
 
-                case 'BattleSetup':
-                case 'BattleDrawCards':
-                case 'BattleResolveCard':
-                case 'BattleRoundEnd':
+                case 'SequenceSetup':
+                case 'SequenceDrawCards':
+                case 'SequenceResolve':
+                case 'SequenceRoundEnd':
                     this.showBattlePanel();
                     break;
+            }
+        },
+
+        updateRoundLocation: function(locationName) {
+            const locEl = document.getElementById('zq-round-location');
+            if (locEl) {
+                locEl.textContent = locationName ? `: ${locationName}` : '';
             }
         },
 
@@ -322,35 +330,27 @@ function (dojo, declare, gamegui, counter) {
             console.log('Leaving state:', stateName);
 
             switch (stateName) {
-                case 'ActionSelection':
-                    this.hideActionSelectionUI();
+                case 'MoveSelection':
+                    this.hideMoveSelectionUI();
                     break;
 
-                case 'BattleCleanup':
-                    this.hideBattlePanel();
+                case 'SequenceCleanup':
+                    // Don't auto-hide - wait for Continue button
                     break;
             }
         },
 
         onUpdateActionButtons: function(stateName, args) {
             console.log('onUpdateActionButtons:', stateName, args);
-
-            if (!this.isCurrentPlayerActive()) return;
-
-            switch (stateName) {
-                case 'ActionSelection':
-                    // Action buttons are handled in showActionSelectionUI
-                    break;
-            }
         },
 
         //
         // ──────────────────────────────────────────────────────────────────────
-        //   ACTION SELECTION UI
+        //   MOVE SELECTION UI (Click map to move or stay)
         // ──────────────────────────────────────────────────────────────────────
         //
 
-        showActionSelectionUI: function(args) {
+        showMoveSelectionUI: function(args) {
             const panel = document.getElementById('zq-action-panel');
             const buttons = document.getElementById('zq-action-buttons');
 
@@ -359,88 +359,151 @@ function (dojo, declare, gamegui, counter) {
                 return;
             }
 
-            this.selectedAction = null;
-            this.selectedMoveTarget = null;
+            // Store state for this turn
+            this.currentLocationId = args.currentLocation.id;
+            this.adjacentLocations = args.adjacentLocations;
+            this.activeCards = args.activeCards || [];
 
-            // Build action buttons
+            const hasHostiles = args.hasHostilesHere || false;
+            
+            // Build active deck display
+            let deckHtml = '';
+            if (this.activeCards.length > 0) {
+                deckHtml = `<div class="zq-deck-display">
+                    ${this.activeCards.map((card, idx) => `
+                        <div class="zq-deck-card" title="${card.card_type}">
+                            <span class="zq-deck-card-order">${idx + 1}</span>
+                            <span class="zq-deck-card-icon">${this.getCardIcon(card.card_type)}</span>
+                        </div>
+                    `).join('')}
+                </div>`;
+            } else {
+                deckHtml = '<div class="zq-deck-empty">No active cards</div>';
+            }
+
             let html = `
                 <div class="zq-current-location">
-                    You are at: <strong>${args.currentLocation.name}</strong>
+                    📍 <strong>${args.currentLocation.name}</strong>
+                    ${hasHostiles ? '<span class="zq-hostiles-warning">⚠️ Hostiles!</span>' : ''}
                 </div>
-                <div class="zq-action-options">
-                    <button id="zq-btn-move" class="zq-action-btn">🚶 Move</button>
-                    <button id="zq-btn-battle" class="zq-action-btn" ${args.hasEnemiesHere ? '' : 'disabled'}>
-                        ⚔️ Battle ${args.hasEnemiesHere ? '' : '(no enemies here)'}
-                    </button>
-                    <button id="zq-btn-rest" class="zq-action-btn">💤 Rest</button>
+                <div class="zq-deck-section">
+                    <div class="zq-deck-label">Active Deck:</div>
+                    ${deckHtml}
                 </div>
-                <div id="zq-move-targets" style="display: none;">
-                    <div class="zq-move-label">Move to:</div>
-                    <div class="zq-move-options"></div>
-                </div>
-                <div id="zq-confirm-action" style="display: none;">
-                    <button id="zq-btn-confirm" class="zq-confirm-btn">Confirm Action</button>
+                <div class="zq-move-hint">
+                    Click map to move or stay
                 </div>
             `;
             buttons.innerHTML = html;
-
-            // Store adjacent locations for move
-            this.adjacentLocations = args.adjacentLocations;
-
-            // Add click handlers
-            document.getElementById('zq-btn-move').addEventListener('click', () => this.onSelectMove());
-            document.getElementById('zq-btn-battle').addEventListener('click', () => this.onSelectBattle());
-            document.getElementById('zq-btn-rest').addEventListener('click', () => this.onSelectRest());
-            document.getElementById('zq-btn-confirm').addEventListener('click', () => this.onConfirmAction());
 
             // Highlight current location and adjacent nodes
             this.highlightCurrentLocation(args.currentLocation.id);
             this.highlightAdjacentNodes(args.adjacentLocations);
 
-            panel.style.display = 'block';
+            // Enable map click handling
+            this.enableMapClickHandling();
+
+            panel.classList.add('zq-panel-active');
         },
 
-        hideActionSelectionUI: function() {
-            const panel = document.getElementById('zq-action-panel');
-            if (panel) panel.style.display = 'none';
-
-            // Remove node highlights
-            document.querySelectorAll('.zq-node').forEach(node => {
-                node.classList.remove('zq-node-adjacent', 'zq-node-selected', 'zq-node-current');
-            });
-        },
-
-        // Fallback UI when we don't have full args from server
-        showBasicActionUI: function() {
+        hideMoveSelectionUI: function() {
             const panel = document.getElementById('zq-action-panel');
             const buttons = document.getElementById('zq-action-buttons');
+            
+            if (panel) panel.classList.remove('zq-panel-active');
+            if (buttons) {
+                buttons.innerHTML = '<div class="zq-no-action">Waiting for next round...</div>';
+            }
 
-            if (!panel || !buttons) {
-                console.error('Action panel elements not found');
+            // Remove node highlights and click handlers
+            document.querySelectorAll('.zq-node').forEach(node => {
+                node.classList.remove('zq-node-adjacent', 'zq-node-selected', 'zq-node-current', 'zq-node-clickable');
+            });
+
+            this.disableMapClickHandling();
+        },
+
+        enableMapClickHandling: function() {
+            // Add clickable class to valid targets
+            document.querySelectorAll('.zq-node-adjacent').forEach(node => {
+                node.classList.add('zq-node-clickable');
+            });
+            
+            // Current location is also clickable (to stay)
+            const currentNode = document.querySelector('.zq-node-current');
+            if (currentNode) {
+                currentNode.classList.add('zq-node-clickable');
+            }
+
+            // Store reference to handler for removal later
+            this.mapClickHandler = (e) => this.onMapNodeClick(e);
+            document.getElementById('zq-nodes-container').addEventListener('click', this.mapClickHandler);
+        },
+
+        disableMapClickHandling: function() {
+            if (this.mapClickHandler) {
+                const container = document.getElementById('zq-nodes-container');
+                if (container) {
+                    container.removeEventListener('click', this.mapClickHandler);
+                }
+                this.mapClickHandler = null;
+            }
+        },
+
+        onMapNodeClick: function(e) {
+            const node = e.target.closest('.zq-node');
+            if (!node || !node.classList.contains('zq-node-clickable')) {
                 return;
             }
 
-            this.selectedAction = null;
-            this.selectedMoveTarget = null;
+            const locationId = node.dataset.location;
+            const isCurrentLocation = (locationId === this.currentLocationId);
 
-            let html = `
-                <div class="zq-action-options">
-                    <button id="zq-btn-move" class="zq-action-btn" disabled>🚶 Move (loading...)</button>
-                    <button id="zq-btn-battle" class="zq-action-btn">⚔️ Battle</button>
-                    <button id="zq-btn-rest" class="zq-action-btn">💤 Rest</button>
-                </div>
-                <div id="zq-confirm-action" style="display: none;">
-                    <button id="zq-btn-confirm" class="zq-confirm-btn">Confirm Action</button>
-                </div>
-            `;
-            buttons.innerHTML = html;
+            if (isCurrentLocation) {
+                // Staying - show plan popup
+                this.showPlanPopupForStay(locationId);
+            } else {
+                // Moving to adjacent location
+                this.confirmMove(locationId);
+            }
+        },
 
-            // Add click handlers for battle and rest (move needs locations)
-            document.getElementById('zq-btn-battle').addEventListener('click', () => this.onSelectBattle());
-            document.getElementById('zq-btn-rest').addEventListener('click', () => this.onSelectRest());
-            document.getElementById('zq-btn-confirm').addEventListener('click', () => this.onConfirmAction());
+        showPlanPopupForStay: function(locationId) {
+            // If no cards, just submit stay immediately
+            if (this.activeCards.length === 0) {
+                this.submitMoveChoice(locationId, null);
+                return;
+            }
 
-            panel.style.display = 'block';
+            // Show plan popup
+            this.showPlanPopup((cardOrder) => {
+                this.submitMoveChoice(locationId, cardOrder);
+            }, () => {
+                // Cancel - just stay without reordering
+                this.submitMoveChoice(locationId, null);
+            });
+        },
+
+        confirmMove: function(locationId) {
+            // Find location name
+            const loc = this.adjacentLocations.find(l => l.location_id === locationId);
+            const locName = loc ? loc.location_name : locationId;
+
+            // Highlight selected
+            document.querySelectorAll('.zq-node').forEach(n => n.classList.remove('zq-node-selected'));
+            document.getElementById(`zq-node-${locationId}`)?.classList.add('zq-node-selected');
+
+            // Submit immediately (no confirmation needed)
+            this.submitMoveChoice(locationId, null);
+        },
+
+        submitMoveChoice: function(locationId, cardOrder) {
+            console.log('Submitting move choice:', locationId, cardOrder);
+            
+            this.bgaPerformAction('actSelectLocation', {
+                locationId: locationId,
+                cardOrder: cardOrder ? JSON.stringify(cardOrder) : null,
+            });
         },
 
         highlightCurrentLocation: function(locationId) {
@@ -467,111 +530,130 @@ function (dojo, declare, gamegui, counter) {
             });
         },
 
-        onSelectMove: function() {
-            this.selectedAction = 'move';
-            this.selectedMoveTarget = null;
+        showPlanPopup: function(onConfirm, onCancel) {
+            // Remove any existing popup
+            this.hidePlanPopup();
 
-            // Update button states
-            document.querySelectorAll('.zq-action-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            document.getElementById('zq-btn-move').classList.add('zq-selected');
+            // Store callbacks
+            this.planConfirmCallback = onConfirm;
+            this.planCancelCallback = onCancel;
 
-            // Show move targets
-            const targetsContainer = document.getElementById('zq-move-targets');
-            const optionsContainer = targetsContainer.querySelector('.zq-move-options');
+            const popup = document.createElement('div');
+            popup.id = 'zq-plan-popup';
+            popup.innerHTML = `
+                <div class="zq-plan-header">
+                    <h3>📋 Arrange Your Cards</h3>
+                    <p>Drag cards to reorder. Top card will be played first in sequences.</p>
+                </div>
+                <div class="zq-plan-cards" id="zq-plan-cards-list">
+                    ${this.activeCards.map((card, idx) => `
+                        <div class="zq-plan-card" draggable="true" data-card-id="${card.card_id}" data-index="${idx}">
+                            <span class="zq-plan-card-icon">${this.getCardIcon(card.card_type)}</span>
+                            <span class="zq-plan-card-type">${card.card_type}</span>
+                            <span class="zq-plan-card-order">#${idx + 1}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="zq-plan-actions">
+                    <button id="zq-plan-save" class="zq-plan-btn zq-plan-save">✓ Save & Stay</button>
+                    <button id="zq-plan-cancel" class="zq-plan-btn zq-plan-cancel">✗ Just Stay</button>
+                </div>
+            `;
 
-            let html = '';
-            this.adjacentLocations.forEach(loc => {
-                // Show "Path Name to Destination" format
-                const pathName = loc.connection_name || 'Path';
-                const destName = loc.location_name || loc.location_id;
-                html += `<button class="zq-move-target-btn" data-location="${loc.location_id}">
-                    ${pathName} to ${destName}
-                </button>`;
+            document.body.appendChild(popup);
+
+            // Setup drag and drop
+            this.setupPlanDragAndDrop();
+
+            // Button handlers
+            document.getElementById('zq-plan-save').addEventListener('click', () => this.onSavePlan());
+            document.getElementById('zq-plan-cancel').addEventListener('click', () => this.onCancelPlan());
+        },
+
+        hidePlanPopup: function() {
+            const popup = document.getElementById('zq-plan-popup');
+            if (popup) popup.remove();
+        },
+
+        setupPlanDragAndDrop: function() {
+            const container = document.getElementById('zq-plan-cards-list');
+            if (!container) return;
+
+            let draggedEl = null;
+
+            container.querySelectorAll('.zq-plan-card').forEach(card => {
+                card.addEventListener('dragstart', (e) => {
+                    draggedEl = card;
+                    card.classList.add('zq-dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('zq-dragging');
+                    draggedEl = null;
+                    this.updatePlanCardNumbers();
+                });
+
+                card.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    if (draggedEl && draggedEl !== card) {
+                        const rect = card.getBoundingClientRect();
+                        const midY = rect.top + rect.height / 2;
+                        
+                        if (e.clientY < midY) {
+                            container.insertBefore(draggedEl, card);
+                        } else {
+                            container.insertBefore(draggedEl, card.nextSibling);
+                        }
+                    }
+                });
             });
-            optionsContainer.innerHTML = html;
+        },
 
-            // Add click handlers
-            document.querySelectorAll('.zq-move-target-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => this.onSelectMoveTarget(e.target.dataset.location));
+        updatePlanCardNumbers: function() {
+            const cards = document.querySelectorAll('#zq-plan-cards-list .zq-plan-card');
+            cards.forEach((card, idx) => {
+                const orderEl = card.querySelector('.zq-plan-card-order');
+                if (orderEl) orderEl.textContent = `#${idx + 1}`;
             });
-
-            targetsContainer.style.display = 'block';
-            document.getElementById('zq-confirm-action').style.display = 'none';
         },
 
-        onSelectMoveTarget: function(locationId) {
-            this.selectedMoveTarget = locationId;
+        onSavePlan: function() {
+            // Get card order from DOM
+            const cards = document.querySelectorAll('#zq-plan-cards-list .zq-plan-card');
+            const cardOrder = Array.from(cards).map(card => card.dataset.cardId);
 
-            // Update button states
-            document.querySelectorAll('.zq-move-target-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            document.querySelector(`.zq-move-target-btn[data-location="${locationId}"]`).classList.add('zq-selected');
+            this.hidePlanPopup();
 
-            // Highlight selected node
-            document.querySelectorAll('.zq-node').forEach(node => node.classList.remove('zq-node-selected'));
-            document.getElementById(`zq-node-${locationId}`).classList.add('zq-node-selected');
-
-            // Show confirm button
-            document.getElementById('zq-confirm-action').style.display = 'block';
-        },
-
-        onSelectBattle: function() {
-            this.selectedAction = 'battle';
-            this.selectedMoveTarget = null;
-
-            // Update button states
-            document.querySelectorAll('.zq-action-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            const battleBtn = document.getElementById('zq-btn-battle');
-            if (battleBtn) battleBtn.classList.add('zq-selected');
-
-            const moveTargets = document.getElementById('zq-move-targets');
-            const confirmAction = document.getElementById('zq-confirm-action');
-            if (moveTargets) moveTargets.style.display = 'none';
-            if (confirmAction) confirmAction.style.display = 'block';
-        },
-
-        onSelectRest: function() {
-            this.selectedAction = 'rest';
-            this.selectedMoveTarget = null;
-
-            // Update button states
-            document.querySelectorAll('.zq-action-btn').forEach(btn => btn.classList.remove('zq-selected'));
-            const restBtn = document.getElementById('zq-btn-rest');
-            if (restBtn) restBtn.classList.add('zq-selected');
-
-            const moveTargets = document.getElementById('zq-move-targets');
-            const confirmAction = document.getElementById('zq-confirm-action');
-            if (moveTargets) moveTargets.style.display = 'none';
-            if (confirmAction) confirmAction.style.display = 'block';
-        },
-
-        onConfirmAction: function() {
-            if (!this.selectedAction) {
-                this.showMessage(_("Please select an action"), "error");
-                return;
+            // Call the confirm callback with the new order
+            if (this.planConfirmCallback) {
+                this.planConfirmCallback(cardOrder);
+                this.planConfirmCallback = null;
+                this.planCancelCallback = null;
             }
+        },
 
-            if (this.selectedAction === 'move' && !this.selectedMoveTarget) {
-                this.showMessage(_("Please select a destination"), "error");
-                return;
+        onCancelPlan: function() {
+            this.hidePlanPopup();
+
+            // Call the cancel callback
+            if (this.planCancelCallback) {
+                this.planCancelCallback();
+                this.planConfirmCallback = null;
+                this.planCancelCallback = null;
             }
-
-            this.bgaPerformAction('actSelectAction', {
-                actionType: this.selectedAction,
-                targetLocation: this.selectedMoveTarget || ''
-            });
         },
 
         onNodeClick: function(e) {
-            const locationId = e.currentTarget.dataset.location;
-
-            // If in move selection mode, select this as target
-            if (this.selectedAction === 'move' && this.adjacentLocations) {
-                const isAdjacent = this.adjacentLocations.some(loc => loc.location_id === locationId);
-                if (isAdjacent) {
-                    this.onSelectMoveTarget(locationId);
-                    return;
-                }
+            // If we're in move selection mode and this is a clickable node,
+            // let onMapNodeClick handle it instead of showing popup
+            if (this.mapClickHandler && e.currentTarget.classList.contains('zq-node-clickable')) {
+                return;
             }
+
+            const locationId = e.currentTarget.dataset.location;
 
             // Show location popup
             this.showLocationPopup(locationId, e.currentTarget);
@@ -585,21 +667,13 @@ function (dojo, declare, gamegui, counter) {
             const location = this.gamedatas.map.locations.find(l => l.location_id === locationId);
             if (!location) return;
 
-            // Determine player's current location and adjacent locations
-            const myEntity = this.getMyEntity();
-            const myLocationId = myEntity ? myEntity.location_id : null;
-            const isCurrentLocation = locationId === myLocationId;
-            const isAdjacent = this.adjacentLocations && this.adjacentLocations.some(loc => loc.location_id === locationId);
+            // Determine entities at this location
+            const entitiesHere = this.gamedatas.entities
+                .filter(e => e.location_id === locationId && !e.is_defeated)
+                .map(e => `${e.entity_name}`)
+                .join(', ');
 
-            // Build action buttons
-            let actionHtml = '';
-            if (isCurrentLocation && this.isCurrentPlayerActive()) {
-                actionHtml = `<button class="zq-popup-action-btn" data-action="rest">💤 Rest</button>`;
-            } else if (isAdjacent && this.isCurrentPlayerActive()) {
-                actionHtml = `<button class="zq-popup-action-btn" data-action="move" data-location="${locationId}">🚶 Move Here</button>`;
-            }
-
-            // Create popup
+            // Create popup (informational only - clicking nodes handles movement)
             const popup = document.createElement('div');
             popup.id = 'zq-location-popup';
             popup.className = 'zq-location-popup';
@@ -607,7 +681,7 @@ function (dojo, declare, gamegui, counter) {
                 <div class="zq-popup-close" onclick="document.getElementById('zq-location-popup').remove()">×</div>
                 <div class="zq-popup-name">${location.location_name}</div>
                 <div class="zq-popup-description">${location.location_description || ''}</div>
-                ${actionHtml ? `<div class="zq-popup-actions">${actionHtml}</div>` : ''}
+                ${entitiesHere ? `<div class="zq-popup-entities">📍 ${entitiesHere}</div>` : '<div class="zq-popup-entities">📍 Empty</div>'}
             `;
 
             // Position popup near the node
@@ -619,23 +693,6 @@ function (dojo, declare, gamegui, counter) {
             popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
 
             container.appendChild(popup);
-
-            // Add action button handlers
-            popup.querySelectorAll('.zq-popup-action-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const action = e.target.dataset.action;
-                    if (action === 'rest') {
-                        this.selectedAction = 'rest';
-                        this.selectedMoveTarget = null;
-                        this.onConfirmAction();
-                    } else if (action === 'move') {
-                        this.selectedAction = 'move';
-                        this.selectedMoveTarget = e.target.dataset.location;
-                        this.onConfirmAction();
-                    }
-                    this.hideLocationPopup();
-                });
-            });
 
             // Close popup when clicking outside
             setTimeout(() => {
@@ -667,13 +724,21 @@ function (dojo, declare, gamegui, counter) {
         //
 
         showBattlePanel: function() {
+            // Panel is always visible now, just highlight it
             const panel = document.getElementById('zq-battle-panel');
-            if (panel) panel.style.display = 'block';
+            if (panel) panel.classList.add('zq-battle-active');
         },
 
         hideBattlePanel: function() {
+            // Reset battle panel to idle state
             const panel = document.getElementById('zq-battle-panel');
-            if (panel) panel.style.display = 'none';
+            if (panel) panel.classList.remove('zq-battle-active');
+            
+            const content = document.getElementById('zq-battle-content');
+            if (content) {
+                content.innerHTML = '<div class="zq-no-battle">No active battle</div>';
+            }
+            this.battleEnded = false;
         },
 
         updateBattleDisplay: function(data) {
@@ -701,9 +766,9 @@ function (dojo, declare, gamegui, counter) {
             this.renderEntities();
         },
 
-        notif_actionSelected: function(args) {
-            // Player has selected their action - just log for now
-            console.log('Action selected:', args);
+        notif_moveSelected: function(args) {
+            // Player has selected their move - just log for now
+            console.log('Move selected:', args);
         },
 
         notif_entityMoved: async function(args) {
@@ -734,10 +799,18 @@ function (dojo, declare, gamegui, counter) {
             await this.wait(this.getAnimationDelay());
         },
 
-        notif_battleStart: async function(args) {
-            console.log('Battle start:', args);
+        notif_entityPlanned: async function(args) {
+            console.log('Entity planned:', args);
+            // Just a visual confirmation - no data to update
+            await this.wait(this.getAnimationDelay() / 2);
+        },
 
+        notif_sequenceStart: async function(args) {
+            console.log('Sequence start:', args);
+
+            this.battleEnded = false;
             this.showBattlePanel();
+            this.updateRoundLocation(args.location_name);
 
             const content = document.getElementById('zq-battle-content');
             content.innerHTML = `
@@ -755,13 +828,13 @@ function (dojo, declare, gamegui, counter) {
             await this.wait(this.getAnimationDelay());
         },
 
-        notif_battleCardsDrawn: async function(args) {
-            console.log('Cards drawn:', args);
+        notif_sequenceCardsDrawn: async function(args) {
+            console.log('Sequence cards drawn:', args);
 
             const log = document.getElementById('zq-battle-log');
-            if (log) {
-                let html = '<div class="zq-cards-drawn"><strong>Cards drawn (Heal → Defend → Attack):</strong>';
-                args.cards.forEach(card => {
+            if (log && args.drawn_cards) {
+                let html = '<div class="zq-cards-drawn"><strong>Cards drawn:</strong>';
+                args.drawn_cards.forEach(card => {
                     const icon = this.getCardIcon(card.card_type);
                     const targetText = card.target_name ? ` → ${card.target_name}` : '';
                     html += `<div class="zq-drawn-card ${card.entity_type}">
@@ -859,37 +932,190 @@ function (dojo, declare, gamegui, counter) {
             await this.wait(this.getAnimationDelay());
         },
 
-        notif_battleEnd: async function(args) {
-            console.log('Battle end:', args);
+        notif_sequenceEnd: async function(args) {
+            console.log('Sequence end:', args);
 
             const log = document.getElementById('zq-battle-log');
             if (log) {
-                const message = args.winner === 'players' ? '🎉 Victory!' : '💔 Defeat...';
+                let message = '';
+                if (args.winner === 'players') {
+                    message = '🎉 <strong>Victory!</strong> The heroes are triumphant!';
+                } else if (args.winner === 'monsters') {
+                    message = '💔 <strong>Defeat...</strong> The heroes have fallen.';
+                } else {
+                    message = '⚖️ <strong>Standoff.</strong> All combatants are exhausted.';
+                }
                 log.innerHTML += `<div class="zq-battle-result">${message}</div>`;
             }
 
-            await this.wait(this.getAnimationDelay() * 2);
-        },
+            // Add Continue button
+            const content = document.getElementById('zq-battle-content');
+            if (content) {
+                const continueBtn = document.createElement('div');
+                continueBtn.className = 'zq-battle-continue';
+                continueBtn.innerHTML = '<button id="zq-btn-battle-continue" class="zq-continue-btn">Continue</button>';
+                content.appendChild(continueBtn);
 
-        notif_battleContinues: async function(args) {
-            const log = document.getElementById('zq-battle-log');
-            if (log) {
-                log.innerHTML += '<div class="zq-battle-continues">--- Next round ---</div>';
+                // Set up click handler - just hides the panel
+                document.getElementById('zq-btn-battle-continue').addEventListener('click', () => {
+                    this.hideBattlePanel();
+                });
             }
-            await this.wait(this.getAnimationDelay() / 2);
+
+            // Mark battle as ended but keep panel visible
+            this.battleEnded = true;
         },
 
-        notif_battleCleanup: async function(args) {
-            console.log('Battle cleanup:', args);
+        notif_sequenceContinues: async function(args) {
+            // Internal notification - panel already shows this via round summary
+            console.log('Sequence continues:', args);
+        },
+
+        notif_sequenceRoundSummary: async function(args) {
+            console.log('Sequence round summary:', args);
+
+            const log = document.getElementById('zq-battle-log');
+            if (!log) return;
+
+            // Build round container (append, don't replace)
+            let html = `<div class="zq-battle-round" data-round="${args.round}">`;
+            html += `<div class="zq-round-header">⚔️ Round ${args.round}</div>`;
+
+            // Group resolutions by phase (resolution order: watch, sneak, defend, attack, heal)
+            const phases = {
+                watch: { icon: '👁️', name: 'Watch', resolutions: [] },
+                sneak: { icon: '🥷', name: 'Sneak', resolutions: [] },
+                defend: { icon: '🛡️', name: 'Block', resolutions: [] },
+                attack: { icon: '⚔️', name: 'Attack', resolutions: [] },
+                heal: { icon: '💚', name: 'Heal', resolutions: [] }
+            };
+
+            args.resolutions.forEach(r => {
+                if (phases[r.card_type]) {
+                    phases[r.card_type].resolutions.push(r);
+                }
+            });
+
+            // Display each phase
+            for (const [type, phase] of Object.entries(phases)) {
+                if (phase.resolutions.length > 0) {
+                    html += `<div class="zq-phase-section">`;
+                    html += `<div class="zq-phase-header">${phase.icon} ${phase.name}:</div>`;
+                    phase.resolutions.forEach(r => {
+                        const desc = this.formatResolutionLine(r);
+                        html += `<div class="zq-phase-line">• ${desc}</div>`;
+                    });
+                    html += `</div>`;
+                }
+            }
+
+            // Add status summary
+            html += `<div class="zq-round-status">`;
+            html += `<div class="zq-status-header">End of Round ${args.round}:</div>`;
+            html += `<div class="zq-status-line">`;
+            args.status.forEach((s, idx) => {
+                const status = s.is_defeated ? '💀' : `${s.active}/${s.discard}/${s.destroyed}`;
+                const sep = idx < args.status.length - 1 ? ' | ' : '';
+                html += `<span class="zq-entity-status ${s.entity_type}">${s.entity_name}: ${status}</span>${sep}`;
+            });
+            html += `</div></div>`;
+            html += `</div>`; // Close .zq-battle-round
+
+            // Append to log (keep previous rounds)
+            log.innerHTML += html;
+
+            // Auto-scroll to latest round
+            log.scrollTop = log.scrollHeight;
+
+            await this.wait(this.getAnimationDelay());
+        },
+
+        formatResolutionLine: function(r) {
+            const entityName = r.entity_name;
+            const targetName = r.target_name || 'unknown';
+
+            switch (r.card_type) {
+                case 'watch':
+                    if (r.revealed && r.revealed.length > 0) {
+                        const revealedNames = r.revealed.map(e => e.entity_name).join(', ');
+                        return `${entityName} watches and reveals: ${revealedNames}`;
+                    }
+                    return `${entityName} watches but sees nothing hidden`;
+
+                case 'sneak':
+                    if (r.effect === 'hidden') {
+                        return `${entityName} sneaks into the shadows 👁️‍🗨️`;
+                    } else if (r.effect === 'sneak_failed') {
+                        return `${entityName} tries to sneak but is spotted!`;
+                    }
+                    return `${entityName}'s sneak has no effect`;
+
+                case 'heal':
+                    if (r.effect === 'heal') {
+                        return `${entityName} heals ${targetName} (recovers 1 card)`;
+                    } else if (r.effect === 'no_cards_to_heal') {
+                        return `${entityName} tries to heal ${targetName} but no cards to recover`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s heal finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s heal has no effect`;
+
+                case 'defend':
+                    if (r.effect === 'block') {
+                        return `${entityName} defends ${targetName} (+1 block)`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName} tries to defend ${targetName} but already defeated`;
+                    }
+                    return `${entityName}'s defense has no effect`;
+
+                case 'attack':
+                    if (r.effect === 'destroy') {
+                        const pileNote = r.from_pile === 'discard' ? ' (from discard!)' : '';
+                        return `${entityName} attacks ${targetName}, destroying 1 card${pileNote}`;
+                    } else if (r.effect === 'blocked') {
+                        return `${entityName} attacks ${targetName} but is BLOCKED`;
+                    } else if (r.effect === 'target_hidden') {
+                        return `${entityName} attacks but ${targetName} is hidden!`;
+                    } else if (r.effect === 'no_cards') {
+                        return `${entityName} attacks ${targetName} who has no cards left`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s attack finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s attack has no effect`;
+
+                case 'shuffle':
+                    return `${entityName} shuffles their deck 🔀`;
+
+                default:
+                    return `${entityName} plays ${r.card_type}`;
+            }
+        },
+
+        notif_sequenceCleanup: async function(args) {
+            console.log('Sequence cleanup:', args);
 
             // Update deck counts for survivors
+            if (args.survivors) {
             args.survivors.forEach(s => {
                 const entity = this.gamedatas.entities.find(e => e.entity_id == s.entity_id);
                 if (entity) {
                     entity.deck_counts = s.deck_counts;
                 }
             });
+            }
 
+            // Mark defeated entities
+            if (args.defeated) {
+                args.defeated.forEach(d => {
+                    const entity = this.gamedatas.entities.find(e => e.entity_id == d.entity_id);
+                    if (entity) {
+                        entity.is_defeated = 1;
+                    }
+                });
+            }
+
+            // Re-render entities to remove defeated from map
+            this.renderEntities();
             this.updateEntityPanel();
             await this.wait(this.getAnimationDelay());
         },
@@ -912,17 +1138,28 @@ function (dojo, declare, gamegui, counter) {
             const icons = {
                 'attack': '⚔️',
                 'defend': '🛡️',
-                'heal': '💚'
+                'heal': '💚',
+                'sneak': '🥷',
+                'watch': '👁️',
+                'shuffle': '🔀'
             };
             return icons[cardType] || '🃏';
+        },
+
+        getTagIcon: function(tagName) {
+            const icons = {
+                'hidden': '👻',
+                'blocked': '🛡️'
+            };
+            return icons[tagName] || `[${tagName}]`;
         },
 
         getAnimationDelay: function() {
             // Try to get user preference, default to normal if not set
             let speed = 'normal';
             try {
-                const pref = this.getGameUserPreference(100);
-                const speeds = { 1: 'fast', 2: 'normal', 3: 'slow' };
+            const pref = this.getGameUserPreference(100);
+            const speeds = { 1: 'fast', 2: 'normal', 3: 'slow' };
                 speed = speeds[pref] || 'normal';
             } catch (e) {
                 // Preference not defined, use default

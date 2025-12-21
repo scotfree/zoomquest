@@ -13,8 +13,8 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
 /**
  * State: Round Start (game state)
  * - Increment round counter
- * - Clear previous action choices
- * - Activate all players for action selection
+ * - Clear previous move choices
+ * - Activate all players for move selection
  */
 class RoundStart extends GameState
 {
@@ -28,7 +28,7 @@ class RoundStart extends GameState
     }
 
     /**
-     * Called when entering this state - increments round and sets up for action selection
+     * Called when entering this state - increments round and sets up for move selection
      */
     function onEnteringState()
     {
@@ -37,8 +37,8 @@ class RoundStart extends GameState
         // Increment round
         $round = $stateHelper->incrementRound();
 
-        // Clear previous action choices
-        $this->game->clearActionChoices();
+        // Clear previous move choices
+        $this->game->clearMoveChoices();
 
         // Notify players of new round
         $this->notify->all('roundStart', clienttranslate('Round ${round} begins'), [
@@ -48,10 +48,10 @@ class RoundStart extends GameState
         // Update table stats
         $this->game->tableStats->set('rounds_played', $round);
 
-        // Activate all non-defeated players for the action selection phase
+        // Activate all non-defeated players for the move selection phase
         $this->game->gamestate->setAllPlayersMultiactive();
 
-        // Transition to action selection
-        return ActionSelection::class;
+        // Transition to move selection
+        return MoveSelection::class;
     }
 }

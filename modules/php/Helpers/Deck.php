@@ -86,6 +86,36 @@ class Deck
     }
 
     /**
+     * Get all active cards for an entity, ordered by card_order
+     * @return array List of cards with id and type
+     */
+    public function getActiveCards(int $entityId): array
+    {
+        return $this->game->getObjectListFromDB(
+            "SELECT card_id, card_type FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'active' 
+             ORDER BY card_order ASC"
+        );
+    }
+
+    /**
+     * Reorder active cards based on provided card IDs
+     * @param int $entityId The entity
+     * @param array $cardIds Array of card IDs in desired order
+     */
+    public function reorderActive(int $entityId, array $cardIds): void
+    {
+        foreach ($cardIds as $order => $cardId) {
+            $cardId = (int)$cardId;
+            // Verify this card belongs to this entity and is in active pile
+            $this->game->DbQuery(
+                "UPDATE card SET card_order = $order 
+                 WHERE card_id = $cardId AND entity_id = $entityId AND card_pile = 'active'"
+            );
+        }
+    }
+
+    /**
      * Move a card to discard pile
      */
     public function discard(int $cardId): void
@@ -134,14 +164,23 @@ class Deck
 
     /**
      * Destroy a random card - tries active pile first, then discard pile
+     * Excludes cards that are currently drawn (in a sequence)
+     * @param int $entityId The entity to destroy a card from
+     * @param array $excludeCardIds Card IDs to exclude (e.g., currently drawn cards)
      * @return array|null The destroyed card with 'from_pile' key, or null if no cards
      */
-    public function destroyOneCard(int $entityId): ?array
+    public function destroyOneCard(int $entityId, array $excludeCardIds = []): ?array
     {
+        $excludeClause = '';
+        if (!empty($excludeCardIds)) {
+            $ids = implode(',', array_map('intval', $excludeCardIds));
+            $excludeClause = " AND card_id NOT IN ($ids)";
+        }
+
         // Try active pile first
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type FROM card 
-             WHERE entity_id = $entityId AND card_pile = 'active' 
+             WHERE entity_id = $entityId AND card_pile = 'active' $excludeClause
              ORDER BY RAND() LIMIT 1"
         );
 
@@ -154,7 +193,7 @@ class Deck
         // Try discard pile
         $card = $this->game->getObjectFromDB(
             "SELECT card_id, card_type FROM card 
-             WHERE entity_id = $entityId AND card_pile = 'discard' 
+             WHERE entity_id = $entityId AND card_pile = 'discard' $excludeClause
              ORDER BY RAND() LIMIT 1"
         );
 
@@ -196,7 +235,36 @@ class Deck
     }
 
     /**
-     * Shuffle discard back into active deck (end of battle for survivors)
+     * Refresh deck: move discard to bottom of active (maintaining order)
+     * Called at start of each round
+     */
+    public function refreshDeck(int $entityId): void
+    {
+        // Get current max order in active pile
+        $maxActiveOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'active'"
+        );
+
+        // Get discard cards in order
+        $discardCards = $this->game->getObjectListFromDB(
+            "SELECT card_id FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'discard' 
+             ORDER BY card_order ASC"
+        );
+
+        // Move each discard card to bottom of active, maintaining order
+        foreach ($discardCards as $index => $card) {
+            $newOrder = $maxActiveOrder + 1 + $index;
+            $this->game->DbQuery(
+                "UPDATE card SET card_pile = 'active', card_order = $newOrder 
+                 WHERE card_id = {$card['card_id']}"
+            );
+        }
+    }
+
+    /**
+     * Shuffle discard back into active deck (legacy - use refreshDeck for ordered refresh)
      */
     public function shuffleDiscardIntoActive(int $entityId): void
     {

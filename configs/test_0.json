@@ -1,6 +1,14 @@
 {
   "level_name": "test",
   "round": 0,
+  "factions": {
+    "matrix": {
+      "players": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "merchants": "neutral" },
+      "goblins": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "merchants": "hostile" },
+      "undead": { "players": "hostile", "goblins": "neutral", "undead": "friendly", "merchants": "hostile" },
+      "merchants": { "players": "neutral", "goblins": "hostile", "undead": "hostile", "merchants": "friendly" }
+    }
+  },
   "map": {
     "locations": [
       { "id": "village", "name": "Village", "description": "A peaceful starting village" },
@@ -20,41 +28,46 @@
     {
       "name": "Bob",
       "class": "warrior",
+      "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "attack", "attack", "attack"]
+        "active": ["attack", "attack", "attack", "defend", "shuffle"]
       }
     },
     {
       "name": "Alice",
       "class": "mage",
+      "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "defend", "defend", "heal"]
+        "active": ["attack", "attack", "defend", "heal", "shuffle"]
       }
     },
     {
       "name": "Charlie",
       "class": "ranger",
+      "faction": "players",
       "location": "forest",
       "decks": {
-        "active": ["attack", "attack", "attack", "defend", "heal"]
+        "active": ["attack", "attack", "sneak", "watch", "shuffle"]
       }
     },
     {
       "name": "Diana",
       "class": "cleric",
+      "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["defend", "defend", "heal", "heal", "attack"]
+        "active": ["defend", "defend", "heal", "heal", "shuffle"]
       }
     },
     {
       "name": "Erik",
       "class": "rogue",
+      "faction": "players",
       "location": "mountain",
       "decks": {
-        "active": ["attack", "attack", "attack", "attack", "defend"]
+        "active": ["attack", "sneak", "sneak", "watch", "shuffle"]
       }
     }
   ],
@@ -62,14 +75,16 @@
     {
       "name": "Goblin",
       "class": "goblin",
+      "faction": "goblins",
       "location": "cave",
       "decks": {
-        "active": ["attack", "attack", "defend"]
+        "active": ["attack", "attack", "watch"]
       }
     },
     {
       "name": "Skeleton",
       "class": "undead",
+      "faction": "undead",
       "location": "ruins",
       "decks": {
         "active": ["attack", "attack", "defend"]

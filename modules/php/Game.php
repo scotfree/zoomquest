@@ -19,7 +19,7 @@ namespace Bga\Games\Zoomquest;
 
 use Bga\Games\Zoomquest\Helpers\ConfigLoader;
 use Bga\Games\Zoomquest\Helpers\Deck;
-use Bga\Games\Zoomquest\Helpers\CombatResolver;
+use Bga\Games\Zoomquest\Helpers\ActionSequenceResolver;
 use Bga\Games\Zoomquest\Helpers\GameStateHelper;
 use Bga\Games\Zoomquest\States\RoundStart;
 
@@ -30,7 +30,7 @@ class Game extends \Bga\GameFramework\Table
     // Helper instances
     private ?ConfigLoader $configLoader = null;
     private ?Deck $deck = null;
-    private ?CombatResolver $combatResolver = null;
+    private ?ActionSequenceResolver $actionSequenceResolver = null;
     private ?GameStateHelper $gameStateHelper = null;
 
     function __construct()
@@ -62,14 +62,14 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Get CombatResolver helper (lazy initialization)
+     * Get ActionSequenceResolver helper (lazy initialization)
      */
-    public function getCombatResolver(): CombatResolver
+    public function getActionSequenceResolver(): ActionSequenceResolver
     {
-        if ($this->combatResolver === null) {
-            $this->combatResolver = new CombatResolver($this, $this->getDeck());
+        if ($this->actionSequenceResolver === null) {
+            $this->actionSequenceResolver = new ActionSequenceResolver($this, $this->getDeck());
         }
-        return $this->combatResolver;
+        return $this->actionSequenceResolver;
     }
 
     /**
@@ -94,9 +94,14 @@ class Game extends \Bga\GameFramework\Table
         $filename = $configLoader->getScenarioFilename($scenarioOption);
         $config = $configLoader->loadScenario($filename);
 
-        // Store level name
+        // Store level name and faction matrix
         $this->getGameStateHelper()->set(STATE_LEVEL_NAME, $config['level_name']);
         $this->getGameStateHelper()->set(STATE_ROUND, '0');
+        
+        // Store faction matrix from config
+        if (isset($config['factions']['matrix'])) {
+            $this->getGameStateHelper()->set(STATE_FACTION_MATRIX, json_encode($config['factions']['matrix']));
+        }
 
         // Setup BGA players
         $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
@@ -153,11 +158,12 @@ class Game extends \Bga\GameFramework\Table
             
             $name = addslashes($characterConfig['name']);
             $class = addslashes($characterConfig['class']);
+            $faction = addslashes($characterConfig['faction'] ?? 'players');
             $location = addslashes($characterConfig['location']);
 
             $this->DbQuery(
-                "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, location_id, is_defeated) 
-                 VALUES ('player', '$bgaPlayerId', '$name', '$class', '$location', 0)"
+                "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, is_defeated) 
+                 VALUES ('player', '$bgaPlayerId', '$name', '$class', '$faction', '$location', 0)"
             );
             $entityId = (int)$this->DbGetLastId();
 
@@ -170,6 +176,7 @@ class Game extends \Bga\GameFramework\Table
         foreach ($config['monsters'] as $monsterConfig) {
             $name = addslashes($monsterConfig['name']);
             $class = addslashes($monsterConfig['class']);
+            $faction = addslashes($monsterConfig['faction'] ?? 'monsters');
             $location = addslashes($monsterConfig['location']);
 
             // Create one monster copy per player
@@ -179,8 +186,8 @@ class Game extends \Bga\GameFramework\Table
                 $displayName = addslashes($displayName);
 
                 $this->DbQuery(
-                    "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, location_id, is_defeated) 
-                     VALUES ('monster', NULL, '$displayName', '$class', '$location', 0)"
+                    "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, is_defeated) 
+                     VALUES ('monster', NULL, '$displayName', '$class', '$faction', '$location', 0)"
                 );
                 $entityId = (int)$this->DbGetLastId();
 
@@ -228,9 +235,9 @@ class Game extends \Bga\GameFramework\Table
         }
         $result['entities'] = $entities;
 
-        // Current action choices (if in action selection phase)
-        $result['action_choices'] = $this->getCollectionFromDb(
-            "SELECT entity_id, action_type, target_location FROM action_choice"
+        // Current move choices (if in move selection phase)
+        $result['move_choices'] = $this->getCollectionFromDb(
+            "SELECT player_id, target_location FROM move_choice"
         );
 
         return $result;
@@ -257,62 +264,36 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Record an action choice for an entity
+     * Record a move choice for a player
      */
-    public function recordActionChoice(int $entityId, string $actionType, ?string $targetLocation = null): void
+    public function recordMoveChoice(int $playerId, ?string $targetLocation = null, ?string $cardOrder = null): void
     {
         $targetSql = $targetLocation ? "'" . addslashes($targetLocation) . "'" : 'NULL';
+        $cardOrderSql = $cardOrder ? "'" . addslashes($cardOrder) . "'" : 'NULL';
         $this->DbQuery(
-            "INSERT INTO action_choice (entity_id, action_type, target_location) 
-             VALUES ($entityId, '$actionType', $targetSql)
-             ON DUPLICATE KEY UPDATE action_type = '$actionType', target_location = $targetSql"
+            "INSERT INTO move_choice (player_id, target_location, card_order) 
+             VALUES ($playerId, $targetSql, $cardOrderSql)
+             ON DUPLICATE KEY UPDATE target_location = $targetSql, card_order = $cardOrderSql"
         );
     }
 
     /**
-     * Clear all action choices (at start of new round)
+     * Clear all move choices (at start of new round)
      */
-    public function clearActionChoices(): void
+    public function clearMoveChoices(): void
     {
-        $this->DbQuery("DELETE FROM action_choice");
+        $this->DbQuery("DELETE FROM move_choice");
     }
 
     /**
-     * Get action choice for an entity
+     * Get move choice for a player
      */
-    public function getActionChoice(int $entityId): ?array
+    public function getMoveChoice(int $playerId): ?array
     {
         $result = $this->getObjectFromDB(
-            "SELECT action_type, target_location FROM action_choice WHERE entity_id = $entityId"
+            "SELECT target_location, card_order FROM move_choice WHERE player_id = $playerId"
         );
         return $result ?: null;
     }
-
-    /**
-     * Check if all players have submitted their action
-     */
-    public function haveAllPlayersChosen(): bool
-    {
-        $playerCount = (int)$this->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM entity WHERE entity_type = 'player' AND is_defeated = 0"
-        );
-        $choiceCount = (int)$this->getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM action_choice ac
-             JOIN entity e ON ac.entity_id = e.entity_id
-             WHERE e.entity_type = 'player' AND e.is_defeated = 0"
-        );
-
-        return $choiceCount >= $playerCount;
-    }
-
-    /**
-     * Auto-submit monster action choices (they always choose battle)
-     */
-    public function submitMonsterActions(): void
-    {
-        $monsters = $this->getGameStateHelper()->getMonsterEntities();
-        foreach ($monsters as $monster) {
-            $this->recordActionChoice((int)$monster['entity_id'], ACTION_BATTLE);
-        }
-    }
 }
+
