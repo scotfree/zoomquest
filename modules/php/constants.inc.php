@@ -103,5 +103,6 @@ const TRACK_CARD_PLAYS = 'card_plays';
  * Goal state key
  */
 const STATE_INDIVIDUAL_GOALS = 'individual_goals';
+const STATE_BACKGROUND_IMAGE = 'background_image';
 
 ?>

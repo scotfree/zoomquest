@@ -1,6 +1,7 @@
 {
   "level_name": "outland_valley",
   "round": 0,
+  "background_image": "",
   "victory": {
     "type": "defeat_all",
     "description": "Purge the evil from Outland Valley!"

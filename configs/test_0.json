@@ -1,6 +1,7 @@
 {
   "level_name": "test",
   "round": 0,
+  "background_image": "",
   "victory": {
     "type": "defeat_all",
     "description": "Defeat all monsters to win!"

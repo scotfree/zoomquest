@@ -128,6 +128,14 @@ function (dojo, declare, gamegui, counter) {
             const map = this.gamedatas.map;
             const svg = document.getElementById('zq-map-svg');
             const nodesContainer = document.getElementById('zq-nodes-container');
+            const mapContainer = document.getElementById('zq-map-container');
+
+            // Apply scenario background image if provided
+            if (this.gamedatas.background_image) {
+                mapContainer.style.backgroundImage = `url('${this.gamedatas.background_image}')`;
+                mapContainer.style.backgroundSize = 'cover';
+                mapContainer.style.backgroundPosition = 'center';
+            }
 
             // Calculate node positions (simple force-directed layout placeholder)
             const positions = this.calculateNodePositions(map);
@@ -197,18 +205,18 @@ function (dojo, declare, gamegui, counter) {
                 });
             } else {
                 // Fallback: circular layout
-                const nodeCount = map.locations.length;
+            const nodeCount = map.locations.length;
                 const centerX = mapWidth / 2;
                 const centerY = mapHeight / 2;
                 const radius = Math.min(mapWidth, mapHeight) / 2 - padding;
 
-                map.locations.forEach((loc, index) => {
-                    const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
-                    positions[loc.location_id] = {
-                        x: centerX + radius * Math.cos(angle),
-                        y: centerY + radius * Math.sin(angle)
-                    };
-                });
+            map.locations.forEach((loc, index) => {
+                const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
+                positions[loc.location_id] = {
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                };
+            });
             }
 
             return positions;

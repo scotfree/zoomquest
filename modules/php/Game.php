@@ -121,6 +121,11 @@ class Game extends \Bga\GameFramework\Table
             $this->getGameStateHelper()->set(STATE_VICTORY_CONDITION, json_encode($config['victory']));
         }
 
+        // Store background image URL if provided
+        if (isset($config['background_image'])) {
+            $this->getGameStateHelper()->set(STATE_BACKGROUND_IMAGE, $config['background_image']);
+        }
+
         // Setup BGA players
         $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
         $values = [];
@@ -292,6 +297,9 @@ class Game extends \Bga\GameFramework\Table
 
         // Victory condition
         $result['victory'] = $this->getGameStateHelper()->getVictoryCondition();
+
+        // Background image for the map (if any)
+        $result['background_image'] = $this->getGameStateHelper()->get(STATE_BACKGROUND_IMAGE);
 
         // Individual goals (each player only sees their own)
         $result['player_goals'] = [];

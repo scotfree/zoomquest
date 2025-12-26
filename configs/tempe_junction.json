@@ -1,6 +1,7 @@
 {
   "level_name": "tempe_junction",
   "round": 0,
+  "background_image": "",
   "victory": {
     "type": "defeat_all",
     "description": "Clear all monsters from Tempe Junction!"
@@ -86,47 +87,279 @@
   ],
   "factions": {
     "matrix": {
-      "players": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "merchants": "neutral", "townsfolk": "friendly" },
-      "goblins": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "bandits": "neutral", "merchants": "hostile", "townsfolk": "hostile" },
-      "undead": { "players": "hostile", "goblins": "neutral", "undead": "friendly", "bandits": "neutral", "merchants": "hostile", "townsfolk": "hostile" },
-      "bandits": { "players": "hostile", "goblins": "neutral", "undead": "neutral", "bandits": "friendly", "merchants": "hostile", "townsfolk": "hostile" },
-      "merchants": { "players": "neutral", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "merchants": "friendly", "townsfolk": "friendly" },
-      "townsfolk": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "merchants": "friendly", "townsfolk": "friendly" }
+      "players": {
+        "players": "friendly",
+        "goblins": "hostile",
+        "undead": "hostile",
+        "bandits": "hostile",
+        "merchants": "neutral",
+        "townsfolk": "friendly"
+      },
+      "goblins": {
+        "players": "hostile",
+        "goblins": "friendly",
+        "undead": "neutral",
+        "bandits": "neutral",
+        "merchants": "hostile",
+        "townsfolk": "hostile"
+      },
+      "undead": {
+        "players": "hostile",
+        "goblins": "neutral",
+        "undead": "friendly",
+        "bandits": "neutral",
+        "merchants": "hostile",
+        "townsfolk": "hostile"
+      },
+      "bandits": {
+        "players": "hostile",
+        "goblins": "neutral",
+        "undead": "neutral",
+        "bandits": "friendly",
+        "merchants": "hostile",
+        "townsfolk": "hostile"
+      },
+      "merchants": {
+        "players": "neutral",
+        "goblins": "hostile",
+        "undead": "hostile",
+        "bandits": "hostile",
+        "merchants": "friendly",
+        "townsfolk": "friendly"
+      },
+      "townsfolk": {
+        "players": "friendly",
+        "goblins": "hostile",
+        "undead": "hostile",
+        "bandits": "hostile",
+        "merchants": "friendly",
+        "townsfolk": "friendly"
+      }
     }
   },
   "map": {
     "locations": [
-      { "id": "town_square", "name": "Town Square", "description": "The bustling heart of Tempe Junction", "terrain": "settled", "direction": "center", "x": 0.5, "y": 0.45 },
-      { "id": "inn", "name": "The Dusty Boot Inn", "description": "A welcoming tavern with warm beds", "terrain": "settled", "direction": "center", "x": 0.35, "y": 0.45 },
-      { "id": "market", "name": "Market District", "description": "Stalls selling goods from across the frontier", "terrain": "settled", "direction": "south", "x": 0.5, "y": 0.6 },
-      { "id": "blacksmith", "name": "Blacksmith's Forge", "description": "The ring of hammer on anvil echoes", "terrain": "settled", "direction": "east", "x": 0.65, "y": 0.6 },
-      { "id": "chapel", "name": "Old Chapel", "description": "A weathered stone chapel offering sanctuary", "terrain": "settled", "direction": "north", "x": 0.5, "y": 0.3 },
-      { "id": "stables", "name": "Town Stables", "description": "Horses and supplies for the road", "terrain": "settled", "direction": "south", "x": 0.35, "y": 0.7 },
-      { "id": "north_gate", "name": "North Gate", "description": "The road to the mountains begins here", "terrain": "settled", "direction": "north", "x": 0.5, "y": 0.15 },
-      { "id": "south_road", "name": "South Road", "description": "The main trade route heading south", "terrain": "wilderness", "direction": "south", "x": 0.35, "y": 0.85 },
-      { "id": "east_bridge", "name": "East Bridge", "description": "A wooden bridge over a rushing stream", "terrain": "wilderness", "direction": "east", "x": 0.8, "y": 0.5 },
-      { "id": "west_woods", "name": "Western Woods", "description": "Dense forest with hidden paths", "terrain": "wilderness", "direction": "west", "x": 0.15, "y": 0.4 },
-      { "id": "abandoned_mine", "name": "Abandoned Mine", "description": "A dark tunnel network dug into the hillside", "terrain": "wilderness", "direction": "west", "x": 0.08, "y": 0.25 },
-      { "id": "graveyard", "name": "Old Graveyard", "description": "Weathered tombstones under twisted trees", "terrain": "wilderness", "direction": "north", "x": 0.7, "y": 0.2 },
-      { "id": "watchtower", "name": "Ruined Watchtower", "description": "Once protected the town, now home to creatures", "terrain": "wilderness", "direction": "east", "x": 0.92, "y": 0.35 },
-      { "id": "farm", "name": "Abandoned Farm", "description": "Overgrown fields and a collapsed barn", "terrain": "wilderness", "direction": "south", "x": 0.55, "y": 0.92 },
-      { "id": "caves", "name": "Hidden Caves", "description": "A network of natural caverns", "terrain": "wilderness", "direction": "west", "x": 0.08, "y": 0.1 }
+      {
+        "id": "town_square",
+        "name": "Town Square",
+        "description": "The bustling heart of Tempe Junction",
+        "terrain": "settled",
+        "direction": "center",
+        "x": 0.5035304501323918,
+        "y": 0.6152694610778443
+      },
+      {
+        "id": "inn",
+        "name": "The Dusty Boot Inn",
+        "description": "A welcoming tavern with warm beds",
+        "terrain": "settled",
+        "direction": "center",
+        "x": 0.23879082082965575,
+        "y": 0.584131736526946
+      },
+      {
+        "id": "market",
+        "name": "Market District",
+        "description": "Stalls selling goods from across the frontier",
+        "terrain": "settled",
+        "direction": "south",
+        "x": 0.38349514563106796,
+        "y": 0.5281437125748503
+      },
+      {
+        "id": "blacksmith",
+        "name": "Blacksmith's Forge",
+        "description": "The ring of hammer on anvil echoes",
+        "terrain": "settled",
+        "direction": "east",
+        "x": 0.7462047661076787,
+        "y": 0.5916167664670658
+      },
+      {
+        "id": "chapel",
+        "name": "Old Chapel",
+        "description": "A weathered stone chapel offering sanctuary",
+        "terrain": "settled",
+        "direction": "north",
+        "x": 0.6085613415710504,
+        "y": 0.5538922155688623
+      },
+      {
+        "id": "stables",
+        "name": "Town Stables",
+        "description": "Horses and supplies for the road",
+        "terrain": "settled",
+        "direction": "south",
+        "x": 0.3870697263901147,
+        "y": 0.692814371257485
+      },
+      {
+        "id": "north_gate",
+        "name": "North Gate",
+        "description": "The road to the mountains begins here",
+        "terrain": "settled",
+        "direction": "north",
+        "x": 0.5158870255957635,
+        "y": 0.3775449101796407
+      },
+      {
+        "id": "south_road",
+        "name": "South Road",
+        "description": "The main trade route heading south",
+        "terrain": "wilderness",
+        "direction": "south",
+        "x": 0.6571491615180935,
+        "y": 0.8715568862275449
+      },
+      {
+        "id": "east_bridge",
+        "name": "East Bridge",
+        "description": "A wooden bridge over a rushing stream",
+        "terrain": "wilderness",
+        "direction": "east",
+        "x": 0.8794351279788174,
+        "y": 0.4125748502994012
+      },
+      {
+        "id": "west_woods",
+        "name": "Western Woods",
+        "description": "Dense forest with hidden paths",
+        "terrain": "wilderness",
+        "direction": "west",
+        "x": 0.025551632833186223,
+        "y": 0.4407185628742515
+      },
+      {
+        "id": "abandoned_mine",
+        "name": "Abandoned Mine",
+        "description": "A dark tunnel network dug into the hillside",
+        "terrain": "wilderness",
+        "direction": "west",
+        "x": 0.21062665489849955,
+        "y": 0.3122754491017964
+      },
+      {
+        "id": "graveyard",
+        "name": "Old Graveyard",
+        "description": "Weathered tombstones under twisted trees",
+        "terrain": "wilderness",
+        "direction": "north",
+        "x": 0.609090909090909,
+        "y": 0.18203592814371258
+      },
+      {
+        "id": "watchtower",
+        "name": "Ruined Watchtower",
+        "description": "Once protected the town, now home to creatures",
+        "terrain": "wilderness",
+        "direction": "east",
+        "x": 0.9173521624007062,
+        "y": 0.17155688622754492
+      },
+      {
+        "id": "farm",
+        "name": "Abandoned Farm",
+        "description": "Overgrown fields and a collapsed barn",
+        "terrain": "wilderness",
+        "direction": "south",
+        "x": 0.9092233009708739,
+        "y": 0.8637125748502995
+      },
+      {
+        "id": "caves",
+        "name": "Hidden Caves",
+        "description": "A network of natural caverns",
+        "terrain": "wilderness",
+        "direction": "west",
+        "x": 0.07293909973521623,
+        "y": 0.13952095808383233
+      }
     ],
     "connections": [
-      { "name": "Main Street", "from": "town_square", "to": "inn", "bidirectional": true },
-      { "name": "Market Road", "from": "town_square", "to": "market", "bidirectional": true },
-      { "name": "Chapel Path", "from": "town_square", "to": "chapel", "bidirectional": true },
-      { "name": "Smith's Lane", "from": "market", "to": "blacksmith", "bidirectional": true },
-      { "name": "Stable Path", "from": "market", "to": "stables", "bidirectional": true },
-      { "name": "North Road", "from": "chapel", "to": "north_gate", "bidirectional": true },
-      { "name": "Cemetery Path", "from": "chapel", "to": "graveyard", "bidirectional": true },
-      { "name": "South Trail", "from": "stables", "to": "south_road", "bidirectional": true },
-      { "name": "Farm Track", "from": "south_road", "to": "farm", "bidirectional": true },
-      { "name": "Bridge Road", "from": "blacksmith", "to": "east_bridge", "bidirectional": true },
-      { "name": "Tower Path", "from": "east_bridge", "to": "watchtower", "bidirectional": true },
-      { "name": "Forest Edge", "from": "inn", "to": "west_woods", "bidirectional": true },
-      { "name": "Mine Entrance", "from": "west_woods", "to": "abandoned_mine", "bidirectional": true },
-      { "name": "Cave Tunnel", "from": "abandoned_mine", "to": "caves", "bidirectional": true }
+      {
+        "name": "Main Street",
+        "from": "town_square",
+        "to": "inn",
+        "bidirectional": true
+      },
+      {
+        "name": "Market Road",
+        "from": "town_square",
+        "to": "market",
+        "bidirectional": true
+      },
+      {
+        "name": "Chapel Path",
+        "from": "town_square",
+        "to": "chapel",
+        "bidirectional": true
+      },
+      {
+        "name": "Smith's Lane",
+        "from": "market",
+        "to": "blacksmith",
+        "bidirectional": true
+      },
+      {
+        "name": "Stable Path",
+        "from": "market",
+        "to": "stables",
+        "bidirectional": true
+      },
+      {
+        "name": "North Road",
+        "from": "chapel",
+        "to": "north_gate",
+        "bidirectional": true
+      },
+      {
+        "name": "Cemetery Path",
+        "from": "chapel",
+        "to": "graveyard",
+        "bidirectional": true
+      },
+      {
+        "name": "South Trail",
+        "from": "stables",
+        "to": "south_road",
+        "bidirectional": true
+      },
+      {
+        "name": "Farm Track",
+        "from": "south_road",
+        "to": "farm",
+        "bidirectional": true
+      },
+      {
+        "name": "Bridge Road",
+        "from": "blacksmith",
+        "to": "east_bridge",
+        "bidirectional": true
+      },
+      {
+        "name": "Tower Path",
+        "from": "east_bridge",
+        "to": "watchtower",
+        "bidirectional": true
+      },
+      {
+        "name": "Forest Edge",
+        "from": "inn",
+        "to": "west_woods",
+        "bidirectional": true
+      },
+      {
+        "name": "Mine Entrance",
+        "from": "west_woods",
+        "to": "abandoned_mine",
+        "bidirectional": true
+      },
+      {
+        "name": "Cave Tunnel",
+        "from": "abandoned_mine",
+        "to": "caves",
+        "bidirectional": true
+      }
     ]
   },
   "characters": [
@@ -136,7 +369,13 @@
       "faction": "players",
       "location": "town_square",
       "decks": {
-        "active": ["attack", "attack", "defend", "attack", "heal"]
+        "active": [
+          "attack",
+          "attack",
+          "defend",
+          "attack",
+          "heal"
+        ]
       }
     },
     {
@@ -145,7 +384,13 @@
       "faction": "players",
       "location": "chapel",
       "decks": {
-        "active": ["defend", "heal", "heal", "defend", "attack"]
+        "active": [
+          "defend",
+          "heal",
+          "heal",
+          "defend",
+          "attack"
+        ]
       }
     },
     {
@@ -154,7 +399,13 @@
       "faction": "players",
       "location": "west_woods",
       "decks": {
-        "active": ["attack", "attack", "defend", "sneak", "heal"]
+        "active": [
+          "attack",
+          "attack",
+          "defend",
+          "sneak",
+          "heal"
+        ]
       }
     },
     {
@@ -163,7 +414,13 @@
       "faction": "players",
       "location": "town_square",
       "decks": {
-        "active": ["attack", "defend", "heal", "defend", "attack"]
+        "active": [
+          "attack",
+          "defend",
+          "heal",
+          "defend",
+          "attack"
+        ]
       }
     },
     {
@@ -172,7 +429,13 @@
       "faction": "players",
       "location": "market",
       "decks": {
-        "active": ["sneak", "attack", "attack", "defend", "sneak"]
+        "active": [
+          "sneak",
+          "attack",
+          "attack",
+          "defend",
+          "sneak"
+        ]
       }
     }
   ],
@@ -183,10 +446,20 @@
       "faction": "goblins",
       "location": "caves",
       "decks": {
-        "active": ["attack", "sneak", "attack"]
+        "active": [
+          "attack",
+          "sneak",
+          "attack"
+        ]
       },
       "items": [
-        { "name": "Stolen Dagger", "type": "new_action", "data": { "card_type": "attack" } }
+        {
+          "name": "Stolen Dagger",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
       ]
     },
     {
@@ -195,10 +468,21 @@
       "faction": "goblins",
       "location": "abandoned_mine",
       "decks": {
-        "active": ["heal", "attack", "defend", "heal"]
+        "active": [
+          "heal",
+          "attack",
+          "defend",
+          "heal"
+        ]
       },
       "items": [
-        { "name": "Healing Totem", "type": "new_action", "data": { "card_type": "heal" } }
+        {
+          "name": "Healing Totem",
+          "type": "new_action",
+          "data": {
+            "card_type": "heal"
+          }
+        }
       ]
     },
     {
@@ -207,10 +491,21 @@
       "faction": "undead",
       "location": "graveyard",
       "decks": {
-        "active": ["attack", "attack", "defend", "defend"]
+        "active": [
+          "attack",
+          "attack",
+          "defend",
+          "defend"
+        ]
       },
       "items": [
-        { "name": "Ancient Shield", "type": "new_action", "data": { "card_type": "defend" } }
+        {
+          "name": "Ancient Shield",
+          "type": "new_action",
+          "data": {
+            "card_type": "defend"
+          }
+        }
       ]
     },
     {
@@ -219,7 +514,11 @@
       "faction": "undead",
       "location": "graveyard",
       "decks": {
-        "active": ["attack", "attack", "attack"]
+        "active": [
+          "attack",
+          "attack",
+          "attack"
+        ]
       },
       "items": []
     },
@@ -229,10 +528,22 @@
       "faction": "bandits",
       "location": "watchtower",
       "decks": {
-        "active": ["attack", "attack", "defend", "sneak", "attack"]
+        "active": [
+          "attack",
+          "attack",
+          "defend",
+          "sneak",
+          "attack"
+        ]
       },
       "items": [
-        { "name": "Fine Blade", "type": "new_action", "data": { "card_type": "attack" } }
+        {
+          "name": "Fine Blade",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
       ]
     },
     {
@@ -241,10 +552,13 @@
       "faction": "bandits",
       "location": "farm",
       "decks": {
-        "active": ["attack", "attack", "defend"]
+        "active": [
+          "attack",
+          "attack",
+          "defend"
+        ]
       },
       "items": []
     }
   ]
 }
-
