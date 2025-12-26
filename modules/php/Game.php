@@ -21,6 +21,7 @@ use Bga\Games\Zoomquest\Helpers\ConfigLoader;
 use Bga\Games\Zoomquest\Helpers\Deck;
 use Bga\Games\Zoomquest\Helpers\ActionSequenceResolver;
 use Bga\Games\Zoomquest\Helpers\GameStateHelper;
+use Bga\Games\Zoomquest\Helpers\GoalTracker;
 use Bga\Games\Zoomquest\States\RoundStart;
 
 require_once("constants.inc.php");
@@ -32,6 +33,7 @@ class Game extends \Bga\GameFramework\Table
     private ?Deck $deck = null;
     private ?ActionSequenceResolver $actionSequenceResolver = null;
     private ?GameStateHelper $gameStateHelper = null;
+    private ?GoalTracker $goalTracker = null;
 
     function __construct()
     {
@@ -84,6 +86,17 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Get GoalTracker (lazy initialization)
+     */
+    public function getGoalTracker(): GoalTracker
+    {
+        if ($this->goalTracker === null) {
+            $this->goalTracker = new GoalTracker($this);
+        }
+        return $this->goalTracker;
+    }
+
+    /**
      * Setup a new game from configuration
      */
     protected function setupNewGame($players, $options = [])
@@ -103,6 +116,11 @@ class Game extends \Bga\GameFramework\Table
             $this->getGameStateHelper()->set(STATE_FACTION_MATRIX, json_encode($config['factions']['matrix']));
         }
 
+        // Store victory condition
+        if (isset($config['victory'])) {
+            $this->getGameStateHelper()->set(STATE_VICTORY_CONDITION, json_encode($config['victory']));
+        }
+
         // Setup BGA players
         $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
         $values = [];
@@ -120,14 +138,18 @@ class Game extends \Bga\GameFramework\Table
         $this->DbQuery($sql);
         $this->reloadPlayersBasicInfos();
 
-        // Setup map locations
+        // Setup map locations (with terrain, direction, and coordinates)
         foreach ($config['map']['locations'] as $loc) {
             $id = addslashes($loc['id']);
             $name = addslashes($loc['name']);
             $desc = addslashes($loc['description'] ?? '');
+            $terrain = addslashes($loc['terrain'] ?? 'wilderness');
+            $direction = addslashes($loc['direction'] ?? 'center');
+            $x = (float)($loc['x'] ?? 0.5);
+            $y = (float)($loc['y'] ?? 0.5);
             $this->DbQuery(
-                "INSERT INTO location (location_id, location_name, location_description) 
-                 VALUES ('$id', '$name', '$desc')"
+                "INSERT INTO location (location_id, location_name, location_description, terrain, direction, x, y) 
+                 VALUES ('$id', '$name', '$desc', '$terrain', '$direction', $x, $y)"
             );
         }
 
@@ -194,7 +216,25 @@ class Game extends \Bga\GameFramework\Table
                 // Create deck from config (copy the deck for each monster)
                 $deck->createDeck($entityId, $monsterConfig['decks']['active']);
                 $deck->shuffleActive($entityId);
+
+                // Create items from config (copy the items for each monster)
+                if (isset($monsterConfig['items'])) {
+                    foreach ($monsterConfig['items'] as $itemConfig) {
+                        $itemName = addslashes($itemConfig['name']);
+                        $itemType = addslashes($itemConfig['type']);
+                        $itemData = addslashes(json_encode($itemConfig['data'] ?? []));
+                        $this->DbQuery(
+                            "INSERT INTO item (entity_id, item_name, item_type, item_data) 
+                             VALUES ($entityId, '$itemName', '$itemType', '$itemData')"
+                        );
+                    }
+                }
             }
+        }
+
+        // Assign individual goals to players
+        if (isset($config['individual_goals']) && !empty($config['individual_goals'])) {
+            $this->getGoalTracker()->assignGoals($players, $config['individual_goals']);
         }
 
         // Initialize stats
@@ -226,12 +266,22 @@ class Game extends \Bga\GameFramework\Table
         // Map data
         $result['map'] = $this->getGameStateHelper()->getMap();
 
-        // All entities with their deck counts
+        // All entities with their deck counts and items
         $entities = $this->getGameStateHelper()->getAllEntities();
         $deck = $this->getDeck();
 
         foreach ($entities as &$entity) {
-            $entity['deck_counts'] = $deck->getPileCounts((int)$entity['entity_id']);
+            $entityId = (int)$entity['entity_id'];
+            $entity['deck_counts'] = $deck->getPileCounts($entityId);
+            
+            // Get items for this entity
+            $entity['items'] = $this->getObjectListFromDB(
+                "SELECT item_id, item_name, item_type, item_data FROM item WHERE entity_id = $entityId"
+            );
+            // Parse item_data JSON
+            foreach ($entity['items'] as &$item) {
+                $item['item_data'] = json_decode($item['item_data'], true) ?? [];
+            }
         }
         $result['entities'] = $entities;
 
@@ -239,6 +289,28 @@ class Game extends \Bga\GameFramework\Table
         $result['move_choices'] = $this->getCollectionFromDb(
             "SELECT player_id, target_location FROM move_choice"
         );
+
+        // Victory condition
+        $result['victory'] = $this->getGameStateHelper()->getVictoryCondition();
+
+        // Individual goals (each player only sees their own)
+        $result['player_goals'] = [];
+        $goalTracker = $this->getGoalTracker();
+        foreach ($result['players'] as $playerId => $player) {
+            $goal = $goalTracker->getPlayerGoal((int)$playerId);
+            if ($goal) {
+                $progress = $goalTracker->getGoalProgress((int)$playerId);
+                $result['player_goals'][$playerId] = [
+                    'goal_id' => $goal['goal_id'],
+                    'goal_name' => $goal['goal_name'],
+                    'goal_description' => $goal['goal_description'],
+                    'goal_icon' => $goal['goal_icon'],
+                    'threshold' => (int)$goal['threshold'],
+                    'progress' => $progress,
+                    'complete' => $goalTracker->isGoalComplete((int)$playerId),
+                ];
+            }
+        }
 
         return $result;
     }

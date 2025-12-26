@@ -116,6 +116,35 @@ class Deck
     }
 
     /**
+     * Move all active cards to discard (penalty for planning)
+     * Maintains the current order
+     */
+    public function moveActiveToDiscard(int $entityId): void
+    {
+        // Get current max order in discard pile
+        $maxDiscardOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'discard'"
+        );
+
+        // Get active cards in order
+        $activeCards = $this->game->getObjectListFromDB(
+            "SELECT card_id FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'active' 
+             ORDER BY card_order ASC"
+        );
+
+        // Move each to discard, maintaining order
+        foreach ($activeCards as $index => $card) {
+            $newOrder = $maxDiscardOrder + 1 + $index;
+            $this->game->DbQuery(
+                "UPDATE card SET card_pile = 'discard', card_order = $newOrder 
+                 WHERE card_id = {$card['card_id']}"
+            );
+        }
+    }
+
+    /**
      * Move a card to discard pile
      */
     public function discard(int $cardId): void
@@ -208,7 +237,7 @@ class Deck
 
     /**
      * Get pile counts for an entity
-     * @return array ['active' => int, 'discard' => int, 'destroyed' => int]
+     * @return array ['active' => int, 'discard' => int, 'destroyed' => int, 'inactive' => int]
      */
     public function getPileCounts(int $entityId): array
     {
@@ -217,7 +246,7 @@ class Deck
              WHERE entity_id = $entityId GROUP BY card_pile"
         );
 
-        $counts = ['active' => 0, 'discard' => 0, 'destroyed' => 0];
+        $counts = ['active' => 0, 'discard' => 0, 'destroyed' => 0, 'inactive' => 0];
         foreach ($result as $row) {
             $counts[$row['card_pile']] = (int)$row['count'];
         }
@@ -286,12 +315,99 @@ class Deck
              WHERE entity_id = $entityId ORDER BY card_pile, card_order"
         );
 
-        $result = ['active' => [], 'discard' => [], 'destroyed' => []];
+        $result = ['active' => [], 'discard' => [], 'destroyed' => [], 'inactive' => []];
         foreach ($cards as $card) {
             $result[$card['card_pile']][] = $card;
         }
 
         return $result;
+    }
+
+    /**
+     * Get inactive cards for an entity, ordered by card_order
+     * @return array List of cards with id and type
+     */
+    public function getInactiveCards(int $entityId): array
+    {
+        return $this->game->getObjectListFromDB(
+            "SELECT card_id, card_type FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'inactive' 
+             ORDER BY card_order ASC"
+        );
+    }
+
+    /**
+     * Move a card from active to inactive pile
+     */
+    public function moveToInactive(int $cardId): void
+    {
+        // Get the entity_id from the card
+        $card = $this->game->getObjectFromDB(
+            "SELECT entity_id FROM card WHERE card_id = $cardId"
+        );
+        if (!$card) {
+            return;
+        }
+        $entityId = (int)$card['entity_id'];
+        
+        // Get max order in inactive pile
+        $maxOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'inactive'"
+        );
+        
+        $this->game->DbQuery(
+            "UPDATE card SET card_pile = 'inactive', card_order = " . ($maxOrder + 1) . " 
+             WHERE card_id = $cardId"
+        );
+    }
+
+    /**
+     * Move a card from inactive to active pile
+     */
+    public function moveToActive(int $cardId): void
+    {
+        // Get the entity_id from the card
+        $card = $this->game->getObjectFromDB(
+            "SELECT entity_id FROM card WHERE card_id = $cardId"
+        );
+        if (!$card) {
+            return;
+        }
+        $entityId = (int)$card['entity_id'];
+        
+        // Get max order in active pile
+        $maxOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'active'"
+        );
+        
+        $this->game->DbQuery(
+            "UPDATE card SET card_pile = 'active', card_order = " . ($maxOrder + 1) . " 
+             WHERE card_id = $cardId"
+        );
+    }
+
+    /**
+     * Add a new card to entity's inactive pile (for item consumption)
+     * @param int $entityId The entity to receive the card
+     * @param string $cardType The type of card to add
+     * @return int The new card's ID
+     */
+    public function addCardToInactive(int $entityId, string $cardType): int
+    {
+        // Get max order in inactive pile
+        $maxOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'inactive'"
+        );
+        
+        $this->game->DbQuery(
+            "INSERT INTO card (entity_id, card_type, card_pile, card_order) 
+             VALUES ($entityId, '$cardType', 'inactive', " . ($maxOrder + 1) . ")"
+        );
+        
+        return (int)$this->game->getUniqueValueFromDB("SELECT LAST_INSERT_ID()");
     }
 }
 

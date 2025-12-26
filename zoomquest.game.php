@@ -23,6 +23,7 @@ require_once(APP_GAMEMODULE_PATH . 'module/table/table.game.php');
 require_once(__DIR__ . '/modules/php/Game.php');
 require_once(__DIR__ . '/modules/php/Helpers/ConfigLoader.php');
 require_once(__DIR__ . '/modules/php/Helpers/Deck.php');
-require_once(__DIR__ . '/modules/php/Helpers/CombatResolver.php');
+require_once(__DIR__ . '/modules/php/Helpers/ActionSequenceResolver.php');
 require_once(__DIR__ . '/modules/php/Helpers/GameStateHelper.php');
+require_once(__DIR__ . '/modules/php/Helpers/GoalTracker.php');
 

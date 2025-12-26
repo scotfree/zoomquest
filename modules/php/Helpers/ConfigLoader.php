@@ -47,12 +47,15 @@ class ConfigLoader
     private function validateConfig(array $config): void
     {
         // Required top-level keys (characters instead of players)
-        $required = ['level_name', 'map', 'characters', 'monsters'];
+        $required = ['level_name', 'map', 'characters', 'monsters', 'victory'];
         foreach ($required as $key) {
             if (!isset($config[$key])) {
                 throw new \BgaUserException("Missing required config key: $key");
             }
         }
+
+        // Validate victory condition
+        $this->validateVictoryCondition($config['victory'], $config);
 
         // Validate map structure
         if (!isset($config['map']['locations']) || !is_array($config['map']['locations'])) {
@@ -115,11 +118,77 @@ class ConfigLoader
         }
 
         // Validate card types
-        $validCards = ['attack', 'defend', 'heal', 'sneak', 'watch', 'shuffle'];
+        $validCards = ['attack', 'defend', 'heal', 'sneak', 'watch', 'shuffle', 'poison', 'mark', 'backstab', 'execute', 'sell', 'steal', 'wealth'];
         foreach ($entity['decks']['active'] as $card) {
             if (!in_array($card, $validCards)) {
                 throw new \BgaUserException("Invalid card type: $card");
             }
+        }
+
+        // Validate items if present
+        if (isset($entity['items'])) {
+            foreach ($entity['items'] as $item) {
+                if (!isset($item['name']) || !isset($item['type'])) {
+                    throw new \BgaUserException("$type items must have 'name' and 'type'");
+                }
+                $validItemTypes = ['new_action', 'information', 'faction'];
+                if (!in_array($item['type'], $validItemTypes)) {
+                    throw new \BgaUserException("Invalid item type: {$item['type']}");
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate victory condition structure
+     */
+    private function validateVictoryCondition(array $victory, array $config): void
+    {
+        if (!isset($victory['type'])) {
+            throw new \BgaUserException("Victory condition must have 'type'");
+        }
+
+        $validTypes = ['defeat_all', 'reach_location', 'defeat_target', 'collect_item'];
+        if (!in_array($victory['type'], $validTypes)) {
+            throw new \BgaUserException("Invalid victory type: {$victory['type']}");
+        }
+
+        // Validate target based on type
+        switch ($victory['type']) {
+            case 'reach_location':
+                if (!isset($victory['target'])) {
+                    throw new \BgaUserException("Victory type 'reach_location' requires 'target' location");
+                }
+                $locationIds = array_column($config['map']['locations'], 'id');
+                if (!in_array($victory['target'], $locationIds)) {
+                    throw new \BgaUserException("Victory target location not found: {$victory['target']}");
+                }
+                break;
+
+            case 'defeat_target':
+                if (!isset($victory['target'])) {
+                    throw new \BgaUserException("Victory type 'defeat_target' requires 'target' monster name");
+                }
+                $monsterNames = array_column($config['monsters'], 'name');
+                if (!in_array($victory['target'], $monsterNames)) {
+                    throw new \BgaUserException("Victory target monster not found: {$victory['target']}");
+                }
+                break;
+
+            case 'collect_item':
+                if (!isset($victory['target'])) {
+                    throw new \BgaUserException("Victory type 'collect_item' requires 'target' item name");
+                }
+                // Items system not implemented yet, just validate target exists
+                break;
+
+            case 'defeat_all':
+                // No additional validation needed
+                break;
+        }
+
+        if (!isset($victory['description'])) {
+            throw new \BgaUserException("Victory condition must have 'description'");
         }
     }
 
@@ -130,6 +199,8 @@ class ConfigLoader
     {
         $scenarios = [
             1 => 'test_0.json',
+            2 => 'tempe_junction.json',
+            3 => 'outland_valley.json',
         ];
 
         return $scenarios[$optionValue] ?? 'test_0.json';

@@ -89,13 +89,178 @@
 }
 
 /* Round display */
-#zq-round-display {
+#zq-top-bar {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 8px 16px;
+}
+
+#zq-round-display {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     padding: 8px 16px;
+}
+
+#zq-objective-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.1));
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+}
+
+.zq-objective-icon {
+    font-size: 1.3em;
+}
+
+.zq-objective-text {
+    color: #ffd700;
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+#zq-personal-goal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.15), rgba(75, 0, 130, 0.1));
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    border-radius: 8px;
+}
+
+.zq-goal-icon {
+    font-size: 1.3em;
+}
+
+.zq-goal-text {
+    color: #dda0dd;
+    font-weight: 500;
+    font-size: 0.9em;
+}
+
+.zq-goal-progress {
+    background: rgba(138, 43, 226, 0.3);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+#zq-personal-goal.zq-goal-complete {
+    background: linear-gradient(135deg, rgba(50, 205, 50, 0.2), rgba(34, 139, 34, 0.15));
+    border-color: rgba(50, 205, 50, 0.4);
+}
+
+#zq-personal-goal.zq-goal-complete .zq-goal-progress {
+    background: rgba(50, 205, 50, 0.5);
+}
+
+/* Goal Summary Popup (End Game) */
+.zq-goal-summary-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.zq-goal-summary-content {
+    background: linear-gradient(135deg, #2a2a3e, #1a1a2e);
+    border: 2px solid #4a4a6a;
+    border-radius: 16px;
+    padding: 24px 32px;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.zq-goal-summary-content h3 {
+    color: #ffd700;
+    font-size: 1.8em;
+    margin: 0 0 16px 0;
+}
+
+.zq-goal-summary-content h4 {
+    color: #dda0dd;
+    font-size: 1.1em;
+    margin: 0 0 12px 0;
+}
+
+.zq-goal-list {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.zq-goal-result {
+    display: grid;
+    grid-template-columns: 100px 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.zq-goal-result.complete {
+    background: rgba(50, 205, 50, 0.15);
+    border-left: 3px solid #32cd32;
+}
+
+.zq-goal-result.incomplete {
+    background: rgba(255, 100, 100, 0.1);
+    border-left: 3px solid #ff6464;
+}
+
+.zq-goal-player {
+    font-weight: 600;
+    color: #fff;
+}
+
+.zq-goal-info {
+    color: #aaa;
+    font-size: 0.9em;
+}
+
+.zq-goal-status {
+    color: #fff;
+    font-size: 0.9em;
+}
+
+.zq-goal-points {
+    color: #ffd700;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.zq-summary-close-btn {
+    background: linear-gradient(135deg, #4a4a6a, #3a3a5a);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background 0.2s;
+}
+
+.zq-summary-close-btn:hover {
+    background: linear-gradient(135deg, #5a5a7a, #4a4a6a);
 }
 
 .zq-label {
@@ -442,6 +607,19 @@
     color: var(--zq-accent-red);
 }
 
+.zq-pile-inactive {
+    color: var(--zq-text-muted);
+    font-style: italic;
+}
+
+.zq-entity-items {
+    font-size: 0.8em;
+    color: var(--zq-text-muted);
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--zq-border);
+}
+
 .zq-no-monsters {
     color: var(--zq-accent-green);
     font-style: italic;
@@ -528,32 +706,116 @@
     margin-bottom: 8px;
 }
 
-.zq-deck-display {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.zq-deck-card {
+/* Editable deck list */
+.zq-deck-editable {
     display: flex;
     flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.zq-deck-editable.zq-deck-modified {
+    border-color: var(--zq-accent-gold);
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+.zq-deck-card-full {
+    display: flex;
     align-items: center;
-    padding: 8px 6px;
+    gap: 8px;
+    padding: 8px 10px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--zq-accent-copper);
-    border-radius: 6px;
-    min-width: 45px;
+    border-radius: 4px;
+    cursor: grab;
+    transition: all 0.15s ease;
 }
 
-.zq-deck-card-order {
-    font-size: 0.7em;
+.zq-deck-card-full:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--zq-accent-gold);
+}
+
+.zq-deck-card-full.zq-dragging {
+    opacity: 0.5;
+    border-color: var(--zq-accent-gold);
+}
+
+.zq-deck-card-full.zq-card-playing {
+    background: rgba(255, 215, 0, 0.3);
+    border-color: var(--zq-accent-gold);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+    animation: pulse-playing 1s ease-in-out infinite;
+}
+
+@keyframes pulse-playing {
+    0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+}
+
+.zq-deck-card-full .zq-deck-card-order {
+    font-size: 0.8em;
     color: var(--zq-text-muted);
-    margin-bottom: 4px;
+    min-width: 18px;
 }
 
-.zq-deck-card-icon {
-    font-size: 1.4em;
+.zq-deck-card-full .zq-deck-card-icon {
+    font-size: 1.2em;
+}
+
+.zq-deck-card-full .zq-deck-card-name {
+    flex: 1;
+    color: var(--zq-text-primary);
+    text-transform: capitalize;
+}
+
+.zq-deck-card-full .zq-deck-card-drag {
+    color: var(--zq-text-muted);
+    font-size: 1em;
+    opacity: 0.5;
+}
+
+/* Deck action buttons */
+.zq-deck-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.zq-deck-btn {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 0.9em;
+    font-family: inherit;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.zq-btn-cancel {
+    background: rgba(100, 100, 100, 0.3);
+    border-color: #666;
+    color: var(--zq-text-secondary);
+}
+
+.zq-btn-cancel:hover {
+    background: rgba(100, 100, 100, 0.5);
+}
+
+.zq-btn-confirm {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: var(--zq-accent-gold);
+    color: var(--zq-accent-gold);
+}
+
+.zq-btn-confirm:hover {
+    background: rgba(212, 175, 55, 0.4);
 }
 
 .zq-deck-empty {
@@ -568,7 +830,7 @@
     font-size: 0.85em;
     text-align: center;
     padding: 8px;
-    margin-top: 12px;
+    margin-top: 8px;
     border-top: 1px solid rgba(212, 175, 55, 0.2);
 }
 
@@ -787,33 +1049,6 @@
     font-style: italic;
 }
 
-/* Battle Continue Button */
-.zq-battle-continue {
-    text-align: center;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--zq-border-color);
-}
-
-.zq-continue-btn {
-    padding: 12px 32px;
-    font-family: inherit;
-    font-size: 1.1em;
-    font-weight: bold;
-    background: linear-gradient(145deg, #2d5a2d, #1a3d1a);
-    border: 2px solid var(--zq-accent-green);
-    border-radius: 8px;
-    color: #55efc4;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.zq-continue-btn:hover {
-    background: linear-gradient(145deg, #3d6a3d, #2d5a2d);
-    box-shadow: 0 0 15px rgba(34, 139, 34, 0.5);
-    transform: scale(1.05);
-}
-
 /* Battle Round Summary */
 .zq-round-header {
     font-size: 1.2em;
@@ -915,6 +1150,19 @@
 .zq-effect-none {
     color: var(--zq-text-secondary);
     font-style: italic;
+}
+
+.zq-effect-success {
+    color: #00d2d3;
+}
+
+.zq-effect-neutral {
+    color: var(--zq-text-muted);
+}
+
+.zq-effect-danger {
+    color: #ff6b6b;
+    font-weight: bold;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

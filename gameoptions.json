@@ -5,7 +5,15 @@
         "values": {
             "1": {
                 "name": "Test Scenario",
-                "description": "A simple test map with one warrior and two goblins"
+                "description": "A simple 5-node test map for learning the game"
+            },
+            "2": {
+                "name": "Tempe Junction",
+                "description": "A 15-node frontier town with goblins, undead, and merchants"
+            },
+            "3": {
+                "name": "Outland Valley",
+                "description": "A sprawling 25-node wilderness adventure"
             }
         },
         "default": 1

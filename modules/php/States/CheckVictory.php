@@ -34,20 +34,42 @@ class CheckVictory extends GameState
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
+        $goalTracker = $this->game->getGoalTracker();
 
-        if ($stateHelper->areAllMonstersDefeated()) {
-            $this->notify->all('gameVictory', clienttranslate('All monsters have been defeated! Victory!'), []);
+        // Check configurable victory condition
+        $victoryResult = $stateHelper->checkVictoryCondition();
+        if ($victoryResult !== null) {
+            [$isVictory, $message] = $victoryResult;
+            
+            $condition = $stateHelper->getVictoryCondition();
+            $goalStatus = $goalTracker->getAllGoalStatus();
+            
+            $this->notify->all('gameVictory', clienttranslate('${message}'), [
+                'message' => $message,
+                'victory_type' => $condition['type'],
+                'victory_target' => $condition['target'] ?? null,
+                'goal_status' => $goalStatus,
+            ]);
 
+            // Award bonus points for completed individual goals
             $players = $this->game->loadPlayersBasicInfos();
             foreach ($players as $playerId => $player) {
-                $this->game->DbQuery("UPDATE player SET player_score = 1 WHERE player_id = $playerId");
+                $baseScore = 1;
+                $bonusScore = isset($goalStatus[$playerId]) ? $goalStatus[$playerId]['points'] : 0;
+                $totalScore = $baseScore + $bonusScore;
+                $this->game->DbQuery("UPDATE player SET player_score = $totalScore WHERE player_id = $playerId");
             }
 
             return ST_END_GAME;
         }
 
+        // Check defeat condition (always the same: all players defeated)
         if ($stateHelper->areAllPlayersDefeated()) {
-            $this->notify->all('gameDefeat', clienttranslate('All heroes have fallen. The quest has failed.'), []);
+            $goalStatus = $goalTracker->getAllGoalStatus();
+            
+            $this->notify->all('gameDefeat', clienttranslate('All heroes have fallen. The quest has failed.'), [
+                'goal_status' => $goalStatus,
+            ]);
 
             $players = $this->game->loadPlayersBasicInfos();
             foreach ($players as $playerId => $player) {

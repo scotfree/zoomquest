@@ -1,6 +1,149 @@
 {
   "level_name": "test",
   "round": 0,
+  "victory": {
+    "type": "defeat_all",
+    "description": "Defeat all monsters to win!"
+  },
+  "individual_goals": [
+    {
+      "id": "explorer",
+      "name": "The Explorer",
+      "description": "Visit 4+ unique locations",
+      "icon": "🗺️",
+      "track": "locations_visited",
+      "threshold": 4,
+      "points": 2
+    },
+    {
+      "id": "settler",
+      "name": "The Settler",
+      "description": "Spend 4+ turns in settled areas",
+      "icon": "🏠",
+      "track": "turns_in_terrain",
+      "filter": "settled",
+      "threshold": 4,
+      "points": 2
+    },
+    {
+      "id": "wildling",
+      "name": "The Wildling",
+      "description": "Spend 4+ turns in wilderness",
+      "icon": "🌲",
+      "track": "turns_in_terrain",
+      "filter": "wilderness",
+      "threshold": 4,
+      "points": 2
+    },
+    {
+      "id": "northerner",
+      "name": "The Northerner",
+      "description": "Spend 3+ turns in the North",
+      "icon": "⬆️",
+      "track": "turns_in_direction",
+      "filter": "north",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "southerner",
+      "name": "The Southerner",
+      "description": "Spend 3+ turns in the South",
+      "icon": "⬇️",
+      "track": "turns_in_direction",
+      "filter": "south",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "easterner",
+      "name": "The Easterner",
+      "description": "Spend 3+ turns in the East",
+      "icon": "➡️",
+      "track": "turns_in_direction",
+      "filter": "east",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "westerner",
+      "name": "The Westerner",
+      "description": "Spend 3+ turns in the West",
+      "icon": "⬅️",
+      "track": "turns_in_direction",
+      "filter": "west",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "slayer",
+      "name": "The Slayer",
+      "description": "Deal 3+ killing blows",
+      "icon": "💀",
+      "track": "killing_blows",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "undead_hunter",
+      "name": "The Undead Hunter",
+      "description": "Defeat 2+ undead enemies",
+      "icon": "☠️",
+      "track": "killing_blows_faction",
+      "filter": "undead",
+      "threshold": 2,
+      "points": 2
+    },
+    {
+      "id": "goblin_slayer",
+      "name": "The Goblin Slayer",
+      "description": "Defeat 2+ goblins",
+      "icon": "👺",
+      "track": "killing_blows_faction",
+      "filter": "goblins",
+      "threshold": 2,
+      "points": 2
+    },
+    {
+      "id": "pacifist",
+      "name": "The Pacifist",
+      "description": "End the game with 0 killing blows",
+      "icon": "🕊️",
+      "track": "killing_blows",
+      "threshold": 0,
+      "compare": "equal",
+      "points": 3
+    },
+    {
+      "id": "protector",
+      "name": "The Protector",
+      "description": "Block 4+ attacks for allies",
+      "icon": "🛡️",
+      "track": "blocks_for_allies",
+      "threshold": 4,
+      "points": 2
+    },
+    {
+      "id": "shadow",
+      "name": "The Shadow",
+      "description": "Play Sneak 3+ times",
+      "icon": "🥷",
+      "track": "card_plays",
+      "filter": "sneak",
+      "threshold": 3,
+      "points": 2
+    },
+    {
+      "id": "poisoner",
+      "name": "The Poisoner",
+      "description": "Apply Poison 3+ times",
+      "icon": "🧪",
+      "track": "card_plays",
+      "filter": "poison",
+      "threshold": 3,
+      "points": 2
+    }
+  ],
   "factions": {
     "matrix": {
       "players": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "merchants": "neutral" },
@@ -11,11 +154,11 @@
   },
   "map": {
     "locations": [
-      { "id": "village", "name": "Village", "description": "A peaceful starting village" },
-      { "id": "forest", "name": "Dark Forest", "description": "A shadowy forest path" },
-      { "id": "cave", "name": "Goblin Cave", "description": "A damp cave echoing with growls" },
-      { "id": "mountain", "name": "Mountain Pass", "description": "A narrow pass through the peaks" },
-      { "id": "ruins", "name": "Ancient Ruins", "description": "Crumbling stone structures overrun by monsters" }
+      { "id": "village", "name": "Village", "description": "A peaceful starting village", "terrain": "settled", "direction": "south", "x": 0.5, "y": 0.85 },
+      { "id": "forest", "name": "Dark Forest", "description": "A shadowy forest path", "terrain": "wilderness", "direction": "center", "x": 0.5, "y": 0.55 },
+      { "id": "cave", "name": "Goblin Cave", "description": "A damp cave echoing with growls", "terrain": "wilderness", "direction": "west", "x": 0.15, "y": 0.35 },
+      { "id": "mountain", "name": "Mountain Pass", "description": "A narrow pass through the peaks", "terrain": "wilderness", "direction": "east", "x": 0.85, "y": 0.35 },
+      { "id": "ruins", "name": "Ancient Ruins", "description": "Crumbling stone structures overrun by monsters", "terrain": "wilderness", "direction": "north", "x": 0.85, "y": 0.1 }
     ],
     "connections": [
       { "name": "Forest Trail", "from": "village", "to": "forest", "bidirectional": true },
@@ -31,16 +174,16 @@
       "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "attack", "defend", "shuffle"]
+        "active": ["attack", "attack", "defend", "attack", "heal"]
       }
     },
     {
       "name": "Alice",
-      "class": "mage",
+      "class": "cleric",
       "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["attack", "attack", "defend", "heal", "shuffle"]
+        "active": ["defend", "heal", "heal", "defend", "attack"]
       }
     },
     {
@@ -49,16 +192,16 @@
       "faction": "players",
       "location": "forest",
       "decks": {
-        "active": ["attack", "attack", "sneak", "watch", "shuffle"]
+        "active": ["attack", "attack", "defend", "sneak", "heal"]
       }
     },
     {
       "name": "Diana",
-      "class": "cleric",
+      "class": "paladin",
       "faction": "players",
       "location": "village",
       "decks": {
-        "active": ["defend", "defend", "heal", "heal", "shuffle"]
+        "active": ["attack", "defend", "heal", "defend", "attack"]
       }
     },
     {
@@ -67,7 +210,7 @@
       "faction": "players",
       "location": "mountain",
       "decks": {
-        "active": ["attack", "sneak", "sneak", "watch", "shuffle"]
+        "active": ["sneak", "attack", "attack", "defend", "sneak"]
       }
     }
   ],
@@ -78,8 +221,11 @@
       "faction": "goblins",
       "location": "cave",
       "decks": {
-        "active": ["attack", "attack", "watch"]
-      }
+        "active": ["attack", "poison", "watch"]
+      },
+      "items": [
+        { "name": "Rusty Sword", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
     },
     {
       "name": "Skeleton",
@@ -87,8 +233,11 @@
       "faction": "undead",
       "location": "ruins",
       "decks": {
-        "active": ["attack", "attack", "defend"]
-      }
+        "active": ["attack", "attack", "defend", "defend", "defend"]
+      },
+      "items": [
+        { "name": "Ancient Blade", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
     }
   ]
 }

@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS `location` (
   `location_id` varchar(32) NOT NULL,
   `location_name` varchar(64) NOT NULL,
   `location_description` varchar(255) DEFAULT '',
+  `terrain` varchar(32) DEFAULT 'wilderness',
+  `direction` varchar(32) DEFAULT 'center',
+  `x` float DEFAULT 0.5,
+  `y` float DEFAULT 0.5,
   PRIMARY KEY (`location_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -56,12 +60,23 @@ CREATE TABLE IF NOT EXISTS `entity_tag` (
 CREATE TABLE IF NOT EXISTS `card` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `entity_id` int(10) unsigned NOT NULL,
-  `card_type` enum('attack','defend','heal','sneak','watch','shuffle') NOT NULL,
-  `card_pile` enum('active','discard','destroyed') NOT NULL DEFAULT 'active',
+  `card_type` enum('attack','defend','heal','sneak','watch','shuffle','poison','mark','backstab','execute','sell','steal','wealth') NOT NULL,
+  `card_pile` enum('active','discard','destroyed','inactive') NOT NULL DEFAULT 'active',
   `card_order` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`card_id`),
   KEY (`entity_id`),
   KEY (`card_pile`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+
+-- Items (belong to entities, consumed on acquisition)
+CREATE TABLE IF NOT EXISTS `item` (
+  `item_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` int(10) unsigned NOT NULL,
+  `item_name` varchar(64) NOT NULL,
+  `item_type` enum('new_action','information','faction') NOT NULL,
+  `item_data` text NOT NULL,
+  PRIMARY KEY (`item_id`),
+  KEY (`entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
 
 -- Movement choices for the current round (cleared each round)
@@ -97,5 +112,34 @@ CREATE TABLE IF NOT EXISTS `game_state` (
   `state_key` varchar(32) NOT NULL,
   `state_value` text,
   PRIMARY KEY (`state_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Player individual goals
+CREATE TABLE IF NOT EXISTS `player_goal` (
+  `player_id` int(10) unsigned NOT NULL,
+  `goal_id` varchar(32) NOT NULL,
+  `goal_name` varchar(64) NOT NULL,
+  `goal_description` varchar(255) NOT NULL,
+  `goal_icon` varchar(32) DEFAULT NULL,
+  `threshold` int(10) unsigned NOT NULL DEFAULT 1,
+  `compare` varchar(16) DEFAULT 'gte',
+  `points` int(10) unsigned NOT NULL DEFAULT 1,
+  PRIMARY KEY (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Goal progress tracking (generic counters)
+CREATE TABLE IF NOT EXISTS `goal_progress` (
+  `player_id` int(10) unsigned NOT NULL,
+  `track_type` varchar(32) NOT NULL,
+  `track_filter` varchar(32) NOT NULL DEFAULT '',
+  `progress` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`player_id`, `track_type`, `track_filter`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Locations visited (for explorer goal)
+CREATE TABLE IF NOT EXISTS `player_visited` (
+  `player_id` int(10) unsigned NOT NULL,
+  `location_id` varchar(32) NOT NULL,
+  PRIMARY KEY (`player_id`, `location_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

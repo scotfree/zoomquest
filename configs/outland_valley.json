@@ -1,0 +1,356 @@
+{
+  "level_name": "outland_valley",
+  "round": 0,
+  "victory": {
+    "type": "defeat_all",
+    "description": "Purge the evil from Outland Valley!"
+  },
+  "individual_goals": [
+    {
+      "id": "explorer",
+      "name": "The Explorer",
+      "description": "Visit 12+ unique locations",
+      "icon": "🗺️",
+      "track": "locations_visited",
+      "threshold": 12,
+      "points": 4
+    },
+    {
+      "id": "settler",
+      "name": "The Settler",
+      "description": "Spend 6+ turns in settled areas",
+      "icon": "🏠",
+      "track": "turns_in_terrain",
+      "filter": "settled",
+      "threshold": 6,
+      "points": 3
+    },
+    {
+      "id": "wildling",
+      "name": "The Wildling",
+      "description": "Spend 8+ turns in wilderness",
+      "icon": "🌲",
+      "track": "turns_in_terrain",
+      "filter": "wilderness",
+      "threshold": 8,
+      "points": 3
+    },
+    {
+      "id": "northerner",
+      "name": "The Northerner",
+      "description": "Spend 5+ turns in the North",
+      "icon": "⬆️",
+      "track": "turns_in_direction",
+      "filter": "north",
+      "threshold": 5,
+      "points": 3
+    },
+    {
+      "id": "southerner",
+      "name": "The Southerner",
+      "description": "Spend 5+ turns in the South",
+      "icon": "⬇️",
+      "track": "turns_in_direction",
+      "filter": "south",
+      "threshold": 5,
+      "points": 3
+    },
+    {
+      "id": "easterner",
+      "name": "The Easterner",
+      "description": "Spend 5+ turns in the East",
+      "icon": "➡️",
+      "track": "turns_in_direction",
+      "filter": "east",
+      "threshold": 5,
+      "points": 3
+    },
+    {
+      "id": "westerner",
+      "name": "The Westerner",
+      "description": "Spend 5+ turns in the West",
+      "icon": "⬅️",
+      "track": "turns_in_direction",
+      "filter": "west",
+      "threshold": 5,
+      "points": 3
+    },
+    {
+      "id": "slayer",
+      "name": "The Slayer",
+      "description": "Deal 6+ killing blows",
+      "icon": "💀",
+      "track": "killing_blows",
+      "threshold": 6,
+      "points": 4
+    },
+    {
+      "id": "undead_hunter",
+      "name": "The Undead Hunter",
+      "description": "Defeat 3+ undead enemies",
+      "icon": "☠️",
+      "track": "killing_blows_faction",
+      "filter": "undead",
+      "threshold": 3,
+      "points": 3
+    },
+    {
+      "id": "goblin_slayer",
+      "name": "The Goblin Slayer",
+      "description": "Defeat 3+ goblins",
+      "icon": "👺",
+      "track": "killing_blows_faction",
+      "filter": "goblins",
+      "threshold": 3,
+      "points": 3
+    },
+    {
+      "id": "pacifist",
+      "name": "The Pacifist",
+      "description": "End the game with 0 killing blows",
+      "icon": "🕊️",
+      "track": "killing_blows",
+      "threshold": 0,
+      "compare": "equal",
+      "points": 5
+    },
+    {
+      "id": "protector",
+      "name": "The Protector",
+      "description": "Block 6+ attacks for allies",
+      "icon": "🛡️",
+      "track": "blocks_for_allies",
+      "threshold": 6,
+      "points": 4
+    }
+  ],
+  "factions": {
+    "matrix": {
+      "players": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "orcs": "hostile", "demons": "hostile", "merchants": "neutral", "villagers": "friendly" },
+      "goblins": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "bandits": "friendly", "orcs": "friendly", "demons": "neutral", "merchants": "hostile", "villagers": "hostile" },
+      "undead": { "players": "hostile", "goblins": "neutral", "undead": "friendly", "bandits": "neutral", "orcs": "neutral", "demons": "friendly", "merchants": "hostile", "villagers": "hostile" },
+      "bandits": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "bandits": "friendly", "orcs": "neutral", "demons": "neutral", "merchants": "hostile", "villagers": "hostile" },
+      "orcs": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "bandits": "neutral", "orcs": "friendly", "demons": "neutral", "merchants": "hostile", "villagers": "hostile" },
+      "demons": { "players": "hostile", "goblins": "neutral", "undead": "friendly", "bandits": "neutral", "orcs": "neutral", "demons": "friendly", "merchants": "hostile", "villagers": "hostile" },
+      "merchants": { "players": "neutral", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "orcs": "hostile", "demons": "hostile", "merchants": "friendly", "villagers": "friendly" },
+      "villagers": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "bandits": "hostile", "orcs": "hostile", "demons": "hostile", "merchants": "friendly", "villagers": "friendly" }
+    }
+  },
+  "map": {
+    "locations": [
+      { "id": "valley_village", "name": "Valley Village", "description": "A small farming community at the valley's heart", "terrain": "settled", "direction": "center", "x": 0.45, "y": 0.45 },
+      { "id": "village_inn", "name": "The Golden Grain Inn", "description": "A cozy tavern serving local ale", "terrain": "settled", "direction": "center", "x": 0.35, "y": 0.5 },
+      { "id": "village_shrine", "name": "Village Shrine", "description": "A modest shrine to the harvest gods", "terrain": "settled", "direction": "center", "x": 0.55, "y": 0.5 },
+      { "id": "north_farmstead", "name": "North Farmstead", "description": "Rolling fields of wheat and barley", "terrain": "settled", "direction": "north", "x": 0.4, "y": 0.32 },
+      { "id": "south_mill", "name": "Old Mill", "description": "A watermill on the southern stream", "terrain": "settled", "direction": "south", "x": 0.4, "y": 0.62 },
+      { "id": "east_orchard", "name": "Apple Orchards", "description": "Rows of fruit trees stretching east", "terrain": "settled", "direction": "east", "x": 0.6, "y": 0.4 },
+      { "id": "west_pastures", "name": "Western Pastures", "description": "Grazing lands for sheep and cattle", "terrain": "settled", "direction": "west", "x": 0.25, "y": 0.45 },
+      { "id": "northern_woods", "name": "Northern Woods", "description": "Dense pine forest climbing the slopes", "terrain": "wilderness", "direction": "north", "x": 0.35, "y": 0.2 },
+      { "id": "pine_clearing", "name": "Pine Clearing", "description": "A moonlit glade deep in the forest", "terrain": "wilderness", "direction": "north", "x": 0.25, "y": 0.12 },
+      { "id": "wolf_den", "name": "Wolf Den", "description": "A rocky outcrop where wolves gather", "terrain": "wilderness", "direction": "north", "x": 0.35, "y": 0.05 },
+      { "id": "mountain_base", "name": "Mountain Base", "description": "Where the foothills meet the peaks", "terrain": "wilderness", "direction": "north", "x": 0.5, "y": 0.08 },
+      { "id": "southern_marsh", "name": "Southern Marsh", "description": "Murky wetlands with hidden depths", "terrain": "wilderness", "direction": "south", "x": 0.35, "y": 0.75 },
+      { "id": "marsh_ruins", "name": "Sunken Ruins", "description": "Ancient structures half-submerged in muck", "terrain": "wilderness", "direction": "south", "x": 0.25, "y": 0.85 },
+      { "id": "swamp_cave", "name": "Swamp Cave", "description": "A dark cave mouth reeking of decay", "terrain": "wilderness", "direction": "south", "x": 0.15, "y": 0.92 },
+      { "id": "eastern_hills", "name": "Eastern Hills", "description": "Grassy hills dotted with boulders", "terrain": "wilderness", "direction": "east", "x": 0.75, "y": 0.35 },
+      { "id": "hill_fortress", "name": "Ruined Fortress", "description": "Crumbling walls of an ancient keep", "terrain": "wilderness", "direction": "east", "x": 0.88, "y": 0.25 },
+      { "id": "bandit_camp", "name": "Bandit Camp", "description": "Tents and campfires hidden among the rocks", "terrain": "wilderness", "direction": "east", "x": 0.95, "y": 0.15 },
+      { "id": "western_river", "name": "River Crossing", "description": "A shallow ford across the western river", "terrain": "wilderness", "direction": "west", "x": 0.1, "y": 0.45 },
+      { "id": "river_cave", "name": "River Cave", "description": "A cavern behind a small waterfall", "terrain": "wilderness", "direction": "west", "x": 0.05, "y": 0.32 },
+      { "id": "goblin_warren", "name": "Goblin Warren", "description": "A maze of tunnels dug into the hillside", "terrain": "wilderness", "direction": "west", "x": 0.05, "y": 0.2 },
+      { "id": "dark_hollow", "name": "Dark Hollow", "description": "A shadowy dell where light fears to tread", "terrain": "wilderness", "direction": "center", "x": 0.7, "y": 0.55 },
+      { "id": "cursed_grove", "name": "Cursed Grove", "description": "Twisted trees with faces in their bark", "terrain": "wilderness", "direction": "center", "x": 0.8, "y": 0.65 },
+      { "id": "old_cemetery", "name": "Old Cemetery", "description": "Overgrown graves from forgotten times", "terrain": "wilderness", "direction": "center", "x": 0.88, "y": 0.75 },
+      { "id": "demon_altar", "name": "Demon Altar", "description": "A blood-stained stone altar crackling with dark energy", "terrain": "wilderness", "direction": "center", "x": 0.92, "y": 0.88 },
+      { "id": "orc_stronghold", "name": "Orc Stronghold", "description": "A fortified camp of savage warriors", "terrain": "wilderness", "direction": "north", "x": 0.65, "y": 0.05 }
+    ],
+    "connections": [
+      { "name": "Village Road", "from": "valley_village", "to": "village_inn", "bidirectional": true },
+      { "name": "Shrine Path", "from": "valley_village", "to": "village_shrine", "bidirectional": true },
+      { "name": "North Road", "from": "valley_village", "to": "north_farmstead", "bidirectional": true },
+      { "name": "Mill Road", "from": "valley_village", "to": "south_mill", "bidirectional": true },
+      { "name": "Orchard Path", "from": "valley_village", "to": "east_orchard", "bidirectional": true },
+      { "name": "Pasture Trail", "from": "valley_village", "to": "west_pastures", "bidirectional": true },
+      { "name": "Forest Edge", "from": "north_farmstead", "to": "northern_woods", "bidirectional": true },
+      { "name": "Woodland Trail", "from": "northern_woods", "to": "pine_clearing", "bidirectional": true },
+      { "name": "Wolf Trail", "from": "pine_clearing", "to": "wolf_den", "bidirectional": true },
+      { "name": "Mountain Path", "from": "wolf_den", "to": "mountain_base", "bidirectional": true },
+      { "name": "Orc Road", "from": "mountain_base", "to": "orc_stronghold", "bidirectional": true },
+      { "name": "Marsh Trail", "from": "south_mill", "to": "southern_marsh", "bidirectional": true },
+      { "name": "Ruin Path", "from": "southern_marsh", "to": "marsh_ruins", "bidirectional": true },
+      { "name": "Cave Entrance", "from": "marsh_ruins", "to": "swamp_cave", "bidirectional": true },
+      { "name": "Hill Road", "from": "east_orchard", "to": "eastern_hills", "bidirectional": true },
+      { "name": "Fortress Climb", "from": "eastern_hills", "to": "hill_fortress", "bidirectional": true },
+      { "name": "Bandit Trail", "from": "hill_fortress", "to": "bandit_camp", "bidirectional": true },
+      { "name": "River Road", "from": "west_pastures", "to": "western_river", "bidirectional": true },
+      { "name": "Waterfall Path", "from": "western_river", "to": "river_cave", "bidirectional": true },
+      { "name": "Goblin Tunnel", "from": "river_cave", "to": "goblin_warren", "bidirectional": true },
+      { "name": "Dark Path", "from": "village_shrine", "to": "dark_hollow", "bidirectional": true },
+      { "name": "Cursed Trail", "from": "dark_hollow", "to": "cursed_grove", "bidirectional": true },
+      { "name": "Graveyard Road", "from": "cursed_grove", "to": "old_cemetery", "bidirectional": true },
+      { "name": "Demon Path", "from": "old_cemetery", "to": "demon_altar", "bidirectional": true }
+    ]
+  },
+  "characters": [
+    {
+      "name": "Aldric",
+      "class": "warrior",
+      "faction": "players",
+      "location": "valley_village",
+      "decks": {
+        "active": ["attack", "attack", "defend", "attack", "heal"]
+      }
+    },
+    {
+      "name": "Lyra",
+      "class": "cleric",
+      "faction": "players",
+      "location": "village_shrine",
+      "decks": {
+        "active": ["defend", "heal", "heal", "defend", "attack"]
+      }
+    },
+    {
+      "name": "Theron",
+      "class": "ranger",
+      "faction": "players",
+      "location": "northern_woods",
+      "decks": {
+        "active": ["attack", "attack", "defend", "sneak", "heal"]
+      }
+    },
+    {
+      "name": "Isolde",
+      "class": "paladin",
+      "faction": "players",
+      "location": "valley_village",
+      "decks": {
+        "active": ["attack", "defend", "heal", "defend", "attack"]
+      }
+    },
+    {
+      "name": "Raven",
+      "class": "rogue",
+      "faction": "players",
+      "location": "village_inn",
+      "decks": {
+        "active": ["sneak", "attack", "attack", "defend", "sneak"]
+      }
+    }
+  ],
+  "monsters": [
+    {
+      "name": "Goblin Scout",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "goblin_warren",
+      "decks": {
+        "active": ["attack", "sneak", "attack"]
+      },
+      "items": [
+        { "name": "Rusty Knife", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    },
+    {
+      "name": "Goblin Chief",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "goblin_warren",
+      "decks": {
+        "active": ["attack", "attack", "defend", "attack", "heal"]
+      },
+      "items": [
+        { "name": "Chief's Blade", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    },
+    {
+      "name": "Skeleton Guard",
+      "class": "undead",
+      "faction": "undead",
+      "location": "old_cemetery",
+      "decks": {
+        "active": ["attack", "defend", "defend", "attack"]
+      },
+      "items": []
+    },
+    {
+      "name": "Zombie",
+      "class": "undead",
+      "faction": "undead",
+      "location": "marsh_ruins",
+      "decks": {
+        "active": ["attack", "attack", "attack"]
+      },
+      "items": []
+    },
+    {
+      "name": "Ghoul",
+      "class": "undead",
+      "faction": "undead",
+      "location": "swamp_cave",
+      "decks": {
+        "active": ["attack", "attack", "sneak", "attack"]
+      },
+      "items": [
+        { "name": "Bone Claws", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    },
+    {
+      "name": "Bandit Archer",
+      "class": "bandit",
+      "faction": "bandits",
+      "location": "bandit_camp",
+      "decks": {
+        "active": ["attack", "attack", "sneak", "attack"]
+      },
+      "items": []
+    },
+    {
+      "name": "Bandit Captain",
+      "class": "bandit",
+      "faction": "bandits",
+      "location": "hill_fortress",
+      "decks": {
+        "active": ["attack", "attack", "defend", "defend", "attack"]
+      },
+      "items": [
+        { "name": "Captain's Sword", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    },
+    {
+      "name": "Orc Warrior",
+      "class": "orc",
+      "faction": "orcs",
+      "location": "orc_stronghold",
+      "decks": {
+        "active": ["attack", "attack", "attack", "defend"]
+      },
+      "items": []
+    },
+    {
+      "name": "Orc Warchief",
+      "class": "orc",
+      "faction": "orcs",
+      "location": "orc_stronghold",
+      "decks": {
+        "active": ["attack", "attack", "attack", "defend", "heal"]
+      },
+      "items": [
+        { "name": "Warchief's Axe", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    },
+    {
+      "name": "Lesser Demon",
+      "class": "demon",
+      "faction": "demons",
+      "location": "demon_altar",
+      "decks": {
+        "active": ["attack", "attack", "attack", "defend", "attack"]
+      },
+      "items": [
+        { "name": "Demonic Essence", "type": "new_action", "data": { "card_type": "attack" } }
+      ]
+    }
+  ]
+}
+

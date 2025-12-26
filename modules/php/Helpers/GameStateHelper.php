@@ -134,8 +134,14 @@ class GameStateHelper
     public function getMap(): array
     {
         $locations = $this->game->getObjectListFromDB(
-            "SELECT location_id, location_name, location_description FROM location"
+            "SELECT location_id, location_name, location_description, terrain, direction, x, y FROM location"
         );
+
+        // Convert x,y to floats for JavaScript
+        foreach ($locations as &$loc) {
+            $loc['x'] = (float)$loc['x'];
+            $loc['y'] = (float)$loc['y'];
+        }
 
         $connections = $this->game->getObjectListFromDB(
             "SELECT connection_id, connection_name, location_from, location_to, bidirectional FROM connection"
@@ -210,6 +216,86 @@ class GameStateHelper
             "SELECT COUNT(*) FROM entity WHERE entity_type = 'player' AND is_defeated = 0"
         );
         return $alive === 0;
+    }
+
+    /**
+     * Get the victory condition configuration
+     */
+    public function getVictoryCondition(): array
+    {
+        $json = $this->get(STATE_VICTORY_CONDITION);
+        if (!$json) {
+            // Default: defeat all monsters
+            return [
+                'type' => VICTORY_DEFEAT_ALL,
+                'description' => 'Defeat all monsters'
+            ];
+        }
+        return json_decode($json, true);
+    }
+
+    /**
+     * Check if victory condition is met
+     * Returns [bool $isVictory, string $message] or null if not yet determined
+     */
+    public function checkVictoryCondition(): ?array
+    {
+        $condition = $this->getVictoryCondition();
+        $type = $condition['type'] ?? VICTORY_DEFEAT_ALL;
+        $target = $condition['target'] ?? null;
+
+        switch ($type) {
+            case VICTORY_DEFEAT_ALL:
+                if ($this->areAllMonstersDefeated()) {
+                    return [true, 'All monsters have been defeated! Victory!'];
+                }
+                break;
+
+            case VICTORY_REACH_LOCATION:
+                if ($this->hasPlayerReachedLocation($target)) {
+                    return [true, "A hero has reached the destination! Victory!"];
+                }
+                break;
+
+            case VICTORY_DEFEAT_TARGET:
+                if ($this->isTargetDefeated($target)) {
+                    return [true, "$target has been slain! Victory!"];
+                }
+                break;
+
+            case VICTORY_COLLECT_ITEM:
+                // Items not implemented yet
+                break;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if any player has reached a specific location
+     */
+    public function hasPlayerReachedLocation(string $locationId): bool
+    {
+        $locationId = addslashes($locationId);
+        $count = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM entity 
+             WHERE entity_type = 'player' AND is_defeated = 0 AND location_id = '$locationId'"
+        );
+        return $count > 0;
+    }
+
+    /**
+     * Check if a specific target monster is defeated
+     */
+    public function isTargetDefeated(string $targetName): bool
+    {
+        $targetName = addslashes($targetName);
+        // Check if monster with this name exists and is defeated
+        $result = $this->game->getObjectFromDB(
+            "SELECT is_defeated FROM entity 
+             WHERE entity_type = 'monster' AND entity_name = '$targetName'"
+        );
+        return $result && $result['is_defeated'] == 1;
     }
 }
 

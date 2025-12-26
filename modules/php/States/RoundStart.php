@@ -33,6 +33,8 @@ class RoundStart extends GameState
     function onEnteringState()
     {
         $stateHelper = $this->game->getGameStateHelper();
+        $goalTracker = $this->game->getGoalTracker();
+        $deck = $this->game->getDeck();
 
         // Increment round
         $round = $stateHelper->incrementRound();
@@ -40,10 +42,43 @@ class RoundStart extends GameState
         // Clear previous move choices
         $this->game->clearMoveChoices();
 
-        // Notify players of new round
-        $this->notify->all('roundStart', clienttranslate('Round ${round} begins'), [
-            'round' => $round,
-        ]);
+        // Track goal progress for each player (turns at location, location visits)
+        $playerEntities = $stateHelper->getPlayerEntities();
+        foreach ($playerEntities as $entity) {
+            if ($entity['is_defeated']) continue;
+            
+            $playerId = (int)$entity['player_id'];
+            $locationId = $entity['location_id'];
+
+            // Track turn at this location (for terrain/direction goals)
+            $goalTracker->trackTurnAtLocation($playerId, $locationId);
+
+            // Track location visit (for explorer goal)
+            $goalTracker->recordLocationVisit($playerId, $locationId);
+
+            // Refresh deck (move discard to active)
+            $deck->refreshDeck((int)$entity['entity_id']);
+        }
+
+        // Build goal progress for each player
+        $goalProgressByPlayer = [];
+        foreach ($playerEntities as $entity) {
+            if ($entity['is_defeated']) continue;
+            $playerId = (int)$entity['player_id'];
+            $goalProgressByPlayer[$playerId] = [
+                'progress' => $goalTracker->getGoalProgress($playerId),
+                'complete' => $goalTracker->isGoalComplete($playerId),
+            ];
+        }
+
+        // Notify players of new round (with private goal progress)
+        foreach ($goalProgressByPlayer as $playerId => $goalData) {
+            $this->notify->player($playerId, 'roundStart', clienttranslate('Round ${round} begins'), [
+                'round' => $round,
+                'goal_progress' => $goalData['progress'],
+                'goal_complete' => $goalData['complete'],
+            ]);
+        }
 
         // Update table stats
         $this->game->tableStats->set('rounds_played', $round);

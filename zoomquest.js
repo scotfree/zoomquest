@@ -72,12 +72,32 @@ function (dojo, declare, gamegui, counter) {
                 return;
             }
             
+            const victoryDesc = this.gamedatas.victory?.description || 'Defeat all monsters';
+            const victoryIcon = this.getVictoryIcon(this.gamedatas.victory?.type);
+            
+            // Get personal goal for current player
+            const myGoal = this.gamedatas.player_goals?.[this.player_id];
+            const goalHtml = myGoal ? `
+                <div id="zq-personal-goal" class="zq-panel">
+                    <span class="zq-goal-icon">${myGoal.goal_icon}</span>
+                    <span class="zq-goal-text">${myGoal.goal_description}</span>
+                    <span class="zq-goal-progress">${myGoal.progress}/${myGoal.threshold}</span>
+                </div>
+            ` : '';
+            
             gameArea.insertAdjacentHTML('beforeend', `
                 <div id="zq-container">
+                    <div id="zq-top-bar">
                     <div id="zq-round-display" class="zq-panel">
-                        <span class="zq-label">Round</span>
+                            <span class="zq-label">Round</span>
                         <span id="zq-round-number">${this.gamedatas.round}</span>
-                        <span id="zq-round-location"></span>
+                            <span id="zq-round-location"></span>
+                        </div>
+                        <div id="zq-objective-display" class="zq-panel">
+                            <span class="zq-objective-icon">${victoryIcon}</span>
+                            <span class="zq-objective-text">${victoryDesc}</span>
+                        </div>
+                        ${goalHtml}
                     </div>
                     <div id="zq-map-container">
                         <svg id="zq-map-svg"></svg>
@@ -89,16 +109,15 @@ function (dojo, declare, gamegui, counter) {
                     </div>
                     <div id="zq-bottom-panels">
                         <div id="zq-action-panel" class="zq-panel">
-                            <h3>Choose Action</h3>
+                            <h3>Action Deck</h3>
                             <div id="zq-action-buttons">
                                 <div class="zq-no-action">Waiting for turn...</div>
-                            </div>
+                    </div>
                         </div>
                         <div id="zq-battle-panel" class="zq-panel">
-                        <h3>⚔️ Battle</h3>
                             <div id="zq-battle-content">
-                                <div class="zq-no-battle">No active battle</div>
-                    </div>
+                                <div class="zq-no-battle">No active sequence</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -157,20 +176,40 @@ function (dojo, declare, gamegui, counter) {
         },
 
         calculateNodePositions: function(map) {
-            // Simple layout algorithm - arrange in a roughly circular pattern
+            // Use x,y coordinates from config if available (normalized 0-1)
+            // Falls back to circular layout if no coordinates defined
             const positions = {};
-            const nodeCount = map.locations.length;
-            const centerX = 300;
-            const centerY = 250;
-            const radius = 150;
+            const mapWidth = 600;  // SVG/container width
+            const mapHeight = 500; // SVG/container height
+            const padding = 50;    // Keep nodes away from edges
+            
+            const hasCoordinates = map.locations.some(loc => loc.x !== undefined && loc.y !== undefined);
+            
+            if (hasCoordinates) {
+                // Use config coordinates (normalized 0-1, scaled to container)
+                map.locations.forEach(loc => {
+                    const x = loc.x !== undefined ? loc.x : 0.5;
+                    const y = loc.y !== undefined ? loc.y : 0.5;
+                    positions[loc.location_id] = {
+                        x: padding + x * (mapWidth - 2 * padding),
+                        y: padding + y * (mapHeight - 2 * padding)
+                    };
+                });
+            } else {
+                // Fallback: circular layout
+                const nodeCount = map.locations.length;
+                const centerX = mapWidth / 2;
+                const centerY = mapHeight / 2;
+                const radius = Math.min(mapWidth, mapHeight) / 2 - padding;
 
-            map.locations.forEach((loc, index) => {
-                const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
-                positions[loc.location_id] = {
-                    x: centerX + radius * Math.cos(angle),
-                    y: centerY + radius * Math.sin(angle)
-                };
-            });
+                map.locations.forEach((loc, index) => {
+                    const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
+                    positions[loc.location_id] = {
+                        x: centerX + radius * Math.cos(angle),
+                        y: centerY + radius * Math.sin(angle)
+                    };
+                });
+            }
 
             return positions;
         },
@@ -224,7 +263,7 @@ function (dojo, declare, gamegui, counter) {
 
             html += '<div class="zq-entity-section"><h4>Heroes</h4>';
             players.forEach(entity => {
-                const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0 };
+                const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0, inactive: 0 };
                 const health = counts.active + counts.discard;
                 const statusClass = entity.is_defeated == 1 ? 'zq-defeated' : '';
                 // Get player name if available
@@ -234,6 +273,11 @@ function (dojo, declare, gamegui, counter) {
                 // Build tags display
                 const tags = entity.tags || [];
                 const tagHtml = tags.map(t => this.getTagIcon(t.tag_name)).join(' ');
+                // Build items display
+                const items = entity.items || [];
+                const itemsHtml = items.length > 0 
+                    ? `<div class="zq-entity-items">📦 Items: ${items.map(i => i.item_name).join(', ')}</div>`
+                    : '';
                 html += `
                     <div class="zq-entity-info ${statusClass}" data-faction="${entity.faction || 'players'}">
                         <div class="zq-entity-name">⚔️ ${entity.entity_name}${playerName} ${tagHtml}</div>
@@ -244,7 +288,9 @@ function (dojo, declare, gamegui, counter) {
                             <span class="zq-pile-active" title="Active">🃏 ${counts.active}</span>
                             <span class="zq-pile-discard" title="Discard">📥 ${counts.discard}</span>
                             <span class="zq-pile-destroyed" title="Destroyed">💀 ${counts.destroyed}</span>
+                            ${counts.inactive > 0 ? `<span class="zq-pile-inactive" title="Inactive">📦 ${counts.inactive}</span>` : ''}
                         </div>
+                        ${itemsHtml}
                     </div>
                 `;
             });
@@ -255,11 +301,16 @@ function (dojo, declare, gamegui, counter) {
                 html += '<div class="zq-no-monsters">All defeated!</div>';
             }
             monsters.forEach(entity => {
-                const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0 };
+                const counts = entity.deck_counts || { active: 0, discard: 0, destroyed: 0, inactive: 0 };
                 const health = counts.active + counts.discard;
                 // Build tags display
                 const tags = entity.tags || [];
                 const tagHtml = tags.map(t => this.getTagIcon(t.tag_name)).join(' ');
+                // Build items display
+                const items = entity.items || [];
+                const itemsHtml = items.length > 0 
+                    ? `<div class="zq-entity-items">📦 ${items.map(i => i.item_name).join(', ')}</div>`
+                    : '';
                 html += `
                     <div class="zq-entity-info zq-monster" data-faction="${entity.faction || 'monsters'}">
                         <div class="zq-entity-name">🧟 ${entity.entity_name} ${tagHtml}</div>
@@ -271,6 +322,7 @@ function (dojo, declare, gamegui, counter) {
                             <span class="zq-pile-discard" title="Discard">📥 ${counts.discard}</span>
                             <span class="zq-pile-destroyed" title="Destroyed">💀 ${counts.destroyed}</span>
                         </div>
+                        ${itemsHtml}
                     </div>
                 `;
             });
@@ -335,7 +387,8 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'SequenceCleanup':
-                    // Don't auto-hide - wait for Continue button
+                    // Auto-hide after sequence ends
+                    this.hideBattlePanel();
                     break;
             }
         },
@@ -363,17 +416,21 @@ function (dojo, declare, gamegui, counter) {
             this.currentLocationId = args.currentLocation.id;
             this.adjacentLocations = args.adjacentLocations;
             this.activeCards = args.activeCards || [];
+            this.originalCardOrder = this.activeCards.map(c => c.card_id); // Store original order
+            this.deckModified = false;
 
             const hasHostiles = args.hasHostilesHere || false;
             
-            // Build active deck display
+            // Build editable deck display (full view with drag-and-drop)
             let deckHtml = '';
             if (this.activeCards.length > 0) {
-                deckHtml = `<div class="zq-deck-display">
+                deckHtml = `<div class="zq-deck-editable" id="zq-deck-list">
                     ${this.activeCards.map((card, idx) => `
-                        <div class="zq-deck-card" title="${card.card_type}">
+                        <div class="zq-deck-card-full" draggable="true" data-card-id="${card.card_id}">
                             <span class="zq-deck-card-order">${idx + 1}</span>
                             <span class="zq-deck-card-icon">${this.getCardIcon(card.card_type)}</span>
+                            <span class="zq-deck-card-name">${card.card_type}</span>
+                            <span class="zq-deck-card-drag">⋮⋮</span>
                         </div>
                     `).join('')}
                 </div>`;
@@ -387,14 +444,25 @@ function (dojo, declare, gamegui, counter) {
                     ${hasHostiles ? '<span class="zq-hostiles-warning">⚠️ Hostiles!</span>' : ''}
                 </div>
                 <div class="zq-deck-section">
-                    <div class="zq-deck-label">Active Deck:</div>
+                    <div class="zq-deck-label">Active Deck (drag to reorder):</div>
                     ${deckHtml}
                 </div>
+                <div class="zq-deck-actions">
+                    <button id="zq-btn-cancel-plan" class="zq-deck-btn zq-btn-cancel">Cancel</button>
+                    <button id="zq-btn-confirm-plan" class="zq-deck-btn zq-btn-confirm">Confirm Plan</button>
+                </div>
                 <div class="zq-move-hint">
-                    Click map to move or stay
+                    Or click map to move
                 </div>
             `;
             buttons.innerHTML = html;
+
+            // Setup drag-and-drop for deck
+            this.setupDeckDragAndDrop();
+
+            // Add button handlers
+            document.getElementById('zq-btn-cancel-plan').addEventListener('click', () => this.onCancelDeckPlan());
+            document.getElementById('zq-btn-confirm-plan').addEventListener('click', () => this.onConfirmDeckPlan());
 
             // Highlight current location and adjacent nodes
             this.highlightCurrentLocation(args.currentLocation.id);
@@ -404,6 +472,95 @@ function (dojo, declare, gamegui, counter) {
             this.enableMapClickHandling();
 
             panel.classList.add('zq-panel-active');
+        },
+
+        setupDeckDragAndDrop: function() {
+            const container = document.getElementById('zq-deck-list');
+            if (!container) return;
+
+            let draggedEl = null;
+
+            container.querySelectorAll('.zq-deck-card-full').forEach(card => {
+                card.addEventListener('dragstart', (e) => {
+                    draggedEl = card;
+                    card.classList.add('zq-dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('zq-dragging');
+                    draggedEl = null;
+                    this.updateDeckCardNumbers();
+                    this.checkDeckModified();
+                });
+
+                card.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    if (draggedEl && draggedEl !== card) {
+                        const rect = card.getBoundingClientRect();
+                        const midY = rect.top + rect.height / 2;
+                        
+                        if (e.clientY < midY) {
+                            container.insertBefore(draggedEl, card);
+                        } else {
+                            container.insertBefore(draggedEl, card.nextSibling);
+                        }
+                    }
+                });
+            });
+        },
+
+        updateDeckCardNumbers: function() {
+            const cards = document.querySelectorAll('#zq-deck-list .zq-deck-card-full');
+            cards.forEach((card, idx) => {
+                const orderEl = card.querySelector('.zq-deck-card-order');
+                if (orderEl) orderEl.textContent = idx + 1;
+            });
+        },
+
+        checkDeckModified: function() {
+            const currentOrder = this.getCurrentDeckOrder();
+            this.deckModified = JSON.stringify(currentOrder) !== JSON.stringify(this.originalCardOrder);
+            
+            // Visual indicator that deck has been modified
+            const container = document.getElementById('zq-deck-list');
+            if (container) {
+                container.classList.toggle('zq-deck-modified', this.deckModified);
+            }
+        },
+
+        getCurrentDeckOrder: function() {
+            const cards = document.querySelectorAll('#zq-deck-list .zq-deck-card-full');
+            return Array.from(cards).map(card => card.dataset.cardId);
+        },
+
+        onCancelDeckPlan: function() {
+            // Reset to original order
+            this.deckModified = false;
+            // Re-render with original order
+            const container = document.getElementById('zq-deck-list');
+            if (container && this.activeCards.length > 0) {
+                container.innerHTML = this.activeCards.map((card, idx) => `
+                    <div class="zq-deck-card-full" draggable="true" data-card-id="${card.card_id}">
+                        <span class="zq-deck-card-order">${idx + 1}</span>
+                        <span class="zq-deck-card-icon">${this.getCardIcon(card.card_type)}</span>
+                        <span class="zq-deck-card-name">${card.card_type}</span>
+                        <span class="zq-deck-card-drag">⋮⋮</span>
+                    </div>
+                `).join('');
+                this.setupDeckDragAndDrop();
+                container.classList.remove('zq-deck-modified');
+            }
+        },
+
+        onConfirmDeckPlan: function() {
+            // Get the new card order
+            const cardOrder = this.getCurrentDeckOrder();
+            
+            // Submit as a "plan" action - cards will be moved to discard as penalty
+            this.submitMoveChoice(this.currentLocationId, cardOrder, true);
         },
 
         hideMoveSelectionUI: function() {
@@ -469,22 +626,19 @@ function (dojo, declare, gamegui, counter) {
         },
 
         showPlanPopupForStay: function(locationId) {
-            // If no cards, just submit stay immediately
-            if (this.activeCards.length === 0) {
-                this.submitMoveChoice(locationId, null);
-                return;
-            }
-
-            // Show plan popup
-            this.showPlanPopup((cardOrder) => {
-                this.submitMoveChoice(locationId, cardOrder);
-            }, () => {
-                // Cancel - just stay without reordering
-                this.submitMoveChoice(locationId, null);
-            });
+            // This is now handled by the inline deck editor
+            // Just stay without planning
+            this.submitMoveChoice(locationId, null, false);
         },
 
         confirmMove: function(locationId) {
+            // Check if deck was modified - warn before moving
+            if (this.deckModified) {
+                if (!confirm('You have unsaved deck changes. Moving will lose these changes. Continue?')) {
+                    return;
+                }
+            }
+
             // Find location name
             const loc = this.adjacentLocations.find(l => l.location_id === locationId);
             const locName = loc ? loc.location_name : locationId;
@@ -493,16 +647,17 @@ function (dojo, declare, gamegui, counter) {
             document.querySelectorAll('.zq-node').forEach(n => n.classList.remove('zq-node-selected'));
             document.getElementById(`zq-node-${locationId}`)?.classList.add('zq-node-selected');
 
-            // Submit immediately (no confirmation needed)
-            this.submitMoveChoice(locationId, null);
+            // Submit move (no plan)
+            this.submitMoveChoice(locationId, null, false);
         },
 
-        submitMoveChoice: function(locationId, cardOrder) {
-            console.log('Submitting move choice:', locationId, cardOrder);
+        submitMoveChoice: function(locationId, cardOrder, isPlan = false) {
+            console.log('Submitting move choice:', locationId, cardOrder, 'isPlan:', isPlan);
             
             this.bgaPerformAction('actSelectLocation', {
                 locationId: locationId,
                 cardOrder: cardOrder ? JSON.stringify(cardOrder) : null,
+                isPlan: isPlan,
             });
         },
 
@@ -717,6 +872,23 @@ function (dojo, declare, gamegui, counter) {
             return this.gamedatas.entities.find(e => e.player_id === playerId);
         },
 
+        highlightCard: function(cardId) {
+            // Clear any existing highlights
+            this.clearCardHighlight();
+            
+            // Find and highlight the card in the deck panel
+            const cardEl = document.querySelector(`#zq-deck-list [data-card-id="${cardId}"]`);
+            if (cardEl) {
+                cardEl.classList.add('zq-card-playing');
+            }
+        },
+
+        clearCardHighlight: function() {
+            document.querySelectorAll('.zq-card-playing').forEach(el => {
+                el.classList.remove('zq-card-playing');
+            });
+        },
+
         //
         // ──────────────────────────────────────────────────────────────────────
         //   BATTLE UI
@@ -762,8 +934,29 @@ function (dojo, declare, gamegui, counter) {
             const roundNum = document.getElementById('zq-round-number');
             if (roundNum) roundNum.textContent = args.round;
             
+            // Update goal progress if provided
+            if (args.goal_progress !== undefined) {
+                this.updateGoalProgress(args.goal_progress, args.goal_complete);
+            }
+            
             // Re-render entities to show updated positions
             this.renderEntities();
+        },
+
+        updateGoalProgress: function(progress, complete) {
+            const progressEl = document.querySelector('.zq-goal-progress');
+            const goalEl = document.getElementById('zq-personal-goal');
+            
+            if (progressEl && this.gamedatas.player_goals?.[this.player_id]) {
+                const goal = this.gamedatas.player_goals[this.player_id];
+                goal.progress = progress;
+                goal.complete = complete;
+                progressEl.textContent = `${progress}/${goal.threshold}`;
+                
+                if (complete && goalEl) {
+                    goalEl.classList.add('zq-goal-complete');
+                }
+            }
         },
 
         notif_moveSelected: function(args) {
@@ -845,6 +1038,15 @@ function (dojo, declare, gamegui, counter) {
                 log.innerHTML += html;
             }
 
+            // Highlight the current player's drawn card in the deck panel
+            const myEntity = this.getMyEntity();
+            if (myEntity && args.drawn_cards) {
+                const myCard = args.drawn_cards.find(c => c.entity_id == myEntity.entity_id);
+                if (myCard) {
+                    this.highlightCard(myCard.card_id);
+                }
+            }
+
             await this.wait(this.getAnimationDelay());
         },
 
@@ -892,6 +1094,28 @@ function (dojo, declare, gamegui, counter) {
                         effectText = `❌ No valid target`;
                         effectClass = 'zq-effect-none';
                         break;
+                    case 'selling':
+                        effectText = `🏷️ Offering items for sale`;
+                        effectClass = 'zq-effect-neutral';
+                        break;
+                    case 'purchased':
+                        const boughtItem = args.item?.item_name || 'an item';
+                        effectText = `💰 Bought ${boughtItem} from ${args.target_name}`;
+                        effectClass = 'zq-effect-success';
+                        break;
+                    case 'not_selling':
+                        effectText = `❌ ${args.target_name} is not selling`;
+                        effectClass = 'zq-effect-none';
+                        break;
+                    case 'stolen':
+                        const stolenItem = args.item?.item_name || 'an item';
+                        effectText = `🤏 Stole ${stolenItem} from ${args.target_name}`;
+                        effectClass = 'zq-effect-success';
+                        break;
+                    case 'caught':
+                        effectText = `😠 CAUGHT stealing! ${args.faction_now_hostile} is now hostile!`;
+                        effectClass = 'zq-effect-danger';
+                        break;
                     default:
                         effectText = `→ ${args.effect || 'No effect'}`;
                 }
@@ -925,7 +1149,12 @@ function (dojo, declare, gamegui, counter) {
 
             const log = document.getElementById('zq-battle-log');
             if (log) {
-                log.innerHTML += `<div class="zq-entity-defeated">💀 ${args.entity_name} has been defeated!</div>`;
+                let lootText = '';
+                if (args.items_looted && args.items_looted.length > 0) {
+                    const itemNames = args.items_looted.map(i => i.item_name).join(', ');
+                    lootText = ` ${args.killer_name || 'You'} looted: ${itemNames}`;
+                }
+                log.innerHTML += `<div class="zq-entity-defeated">💀 ${args.entity_name} has been defeated!${lootText}</div>`;
             }
 
             this.renderEntities();
@@ -938,31 +1167,18 @@ function (dojo, declare, gamegui, counter) {
             const log = document.getElementById('zq-battle-log');
             if (log) {
                 let message = '';
-                if (args.winner === 'players') {
-                    message = '🎉 <strong>Victory!</strong> The heroes are triumphant!';
-                } else if (args.winner === 'monsters') {
-                    message = '💔 <strong>Defeat...</strong> The heroes have fallen.';
+                if (args.eliminated_faction) {
+                    message = `<strong>${args.eliminated_faction}</strong> faction eliminated!`;
                 } else {
                     message = '⚖️ <strong>Standoff.</strong> All combatants are exhausted.';
                 }
                 log.innerHTML += `<div class="zq-battle-result">${message}</div>`;
+                log.scrollTop = log.scrollHeight;
             }
 
-            // Add Continue button
-            const content = document.getElementById('zq-battle-content');
-            if (content) {
-                const continueBtn = document.createElement('div');
-                continueBtn.className = 'zq-battle-continue';
-                continueBtn.innerHTML = '<button id="zq-btn-battle-continue" class="zq-continue-btn">Continue</button>';
-                content.appendChild(continueBtn);
+            // Clear card highlights
+            this.clearCardHighlight();
 
-                // Set up click handler - just hides the panel
-                document.getElementById('zq-btn-battle-continue').addEventListener('click', () => {
-                    this.hideBattlePanel();
-                });
-            }
-
-            // Mark battle as ended but keep panel visible
             this.battleEnded = true;
         },
 
@@ -981,13 +1197,21 @@ function (dojo, declare, gamegui, counter) {
             let html = `<div class="zq-battle-round" data-round="${args.round}">`;
             html += `<div class="zq-round-header">⚔️ Round ${args.round}</div>`;
 
-            // Group resolutions by phase (resolution order: watch, sneak, defend, attack, heal)
+            // Group resolutions by phase (resolution order: watch, sneak, defend, attack, heal, etc)
             const phases = {
                 watch: { icon: '👁️', name: 'Watch', resolutions: [] },
                 sneak: { icon: '🥷', name: 'Sneak', resolutions: [] },
+                poison: { icon: '🧪', name: 'Poison', resolutions: [] },
+                mark: { icon: '🎯', name: 'Mark', resolutions: [] },
                 defend: { icon: '🛡️', name: 'Block', resolutions: [] },
+                backstab: { icon: '🗡️', name: 'Backstab', resolutions: [] },
+                execute: { icon: '💀', name: 'Execute', resolutions: [] },
                 attack: { icon: '⚔️', name: 'Attack', resolutions: [] },
-                heal: { icon: '💚', name: 'Heal', resolutions: [] }
+                heal: { icon: '💚', name: 'Heal', resolutions: [] },
+                shuffle: { icon: '🔀', name: 'Shuffle', resolutions: [] },
+                sell: { icon: '🏷️', name: 'Sell', resolutions: [] },
+                wealth: { icon: '💰', name: 'Wealth', resolutions: [] },
+                steal: { icon: '🤏', name: 'Steal', resolutions: [] }
             };
 
             args.resolutions.forEach(r => {
@@ -1086,7 +1310,86 @@ function (dojo, declare, gamegui, counter) {
                 case 'shuffle':
                     return `${entityName} shuffles their deck 🔀`;
 
+                case 'poison':
+                    if (r.effect === 'poison') {
+                        const duration = r.duration || 3;
+                        return `${entityName} poisons ${targetName} 🧪 (${duration} rounds)`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s poison finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s poison has no effect`;
+
+                case 'mark':
+                    if (r.effect === 'mark') {
+                        const duration = r.duration || 2;
+                        return `${entityName} marks ${targetName} 🎯 (${duration} rounds, +1 damage)`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s mark finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s mark has no effect`;
+
+                case 'backstab':
+                    if (r.effect === 'backstab') {
+                        const damage = r.damage || 3;
+                        const bonus = r.marked_bonus ? ' (+1 marked!)' : '';
+                        return `${entityName} BACKSTABS ${targetName} 🗡️ for ${damage} damage${bonus}!`;
+                    } else if (r.effect === 'not_hidden') {
+                        return `${entityName} tries to backstab but isn't hidden!`;
+                    } else if (r.effect === 'blocked') {
+                        return `${entityName}'s backstab is BLOCKED`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s backstab finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s backstab misses`;
+
+                case 'execute':
+                    if (r.effect === 'execute') {
+                        const damage = r.damage || 3;
+                        const bonus = r.marked_bonus ? ' (+1 marked!)' : '';
+                        return `${entityName} EXECUTES ${targetName} 💀 for ${damage} damage${bonus}!`;
+                    } else if (r.effect === 'not_poisoned') {
+                        return `${entityName} tries to execute but ${targetName} isn't poisoned!`;
+                    } else if (r.effect === 'blocked') {
+                        return `${entityName}'s execute is BLOCKED`;
+                    } else if (r.effect === 'target_defeated') {
+                        return `${entityName}'s execute finds ${targetName} already defeated`;
+                    }
+                    return `${entityName}'s execute misses`;
+
+                case 'sell':
+                    return `${entityName} offers items for sale 🏷️`;
+
+                case 'wealth':
+                    if (r.effect === 'purchased') {
+                        const itemName = r.item?.item_name || 'an item';
+                        return `${entityName} buys ${itemName} from ${targetName} 💰`;
+                    } else if (r.effect === 'not_selling') {
+                        return `${entityName} tries to buy but ${targetName} isn't selling`;
+                    } else if (r.effect === 'no_items') {
+                        return `${entityName} tries to buy but ${targetName} has no items`;
+                    }
+                    return `${entityName}'s purchase fails`;
+
+                case 'steal':
+                    if (r.effect === 'stolen') {
+                        const itemName = r.item?.item_name || 'an item';
+                        return `${entityName} steals ${itemName} from ${targetName} 🤏`;
+                    } else if (r.effect === 'caught') {
+                        return `${entityName} is CAUGHT stealing! ${r.faction_now_hostile} is now hostile! 😠`;
+                    } else if (r.effect === 'no_items') {
+                        return `${entityName} tries to steal but ${targetName} has nothing`;
+                    }
+                    return `${entityName}'s theft fails`;
+
                 default:
+                    // Handle poison tick (effect-based, not card-based)
+                    if (r.effect === 'poison_tick') {
+                        const rounds = r.rounds_remaining || 0;
+                        if (r.defeated) {
+                            return `${entityName} takes poison damage and is defeated! ☠️`;
+                        }
+                        return `${entityName} takes poison damage 🧪 (${rounds} rounds left)`;
+                    }
                     return `${entityName} plays ${r.card_type}`;
             }
         },
@@ -1121,11 +1424,52 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_gameVictory: async function(args) {
-            this.showMessage(_("Victory! All monsters defeated!"), "info");
+            this.showMessage(args.message || _("Victory!"), "info");
+            this.showGoalSummary(args.goal_status, true);
         },
 
         notif_gameDefeat: async function(args) {
             this.showMessage(_("Defeat! All heroes have fallen."), "error");
+            this.showGoalSummary(args.goal_status, false);
+        },
+
+        showGoalSummary: function(goalStatus, isVictory) {
+            if (!goalStatus) return;
+            
+            // Create a summary popup showing all player goals
+            const popup = document.createElement('div');
+            popup.className = 'zq-goal-summary-popup';
+            popup.id = 'zq-goal-summary';
+            
+            let html = `<div class="zq-goal-summary-content">
+                <h3>${isVictory ? '🏆 Victory!' : '💀 Defeat!'}</h3>
+                <h4>Individual Goals:</h4>
+                <div class="zq-goal-list">`;
+            
+            for (const playerId in goalStatus) {
+                const g = goalStatus[playerId];
+                const statusIcon = g.complete ? '✅' : '❌';
+                const pointsText = g.complete ? `+${g.points} pts` : '';
+                
+                html += `
+                    <div class="zq-goal-result ${g.complete ? 'complete' : 'incomplete'}">
+                        <span class="zq-goal-player">${g.player_name}</span>
+                        <span class="zq-goal-info">${g.goal_icon} ${g.goal_name}</span>
+                        <span class="zq-goal-status">${g.progress}/${g.threshold} ${statusIcon}</span>
+                        <span class="zq-goal-points">${pointsText}</span>
+                    </div>`;
+            }
+            
+            html += `</div>
+                <button id="zq-goal-summary-close" class="zq-summary-close-btn">Close</button>
+            </div>`;
+            
+            popup.innerHTML = html;
+            document.body.appendChild(popup);
+            
+            document.getElementById('zq-goal-summary-close').addEventListener('click', () => {
+                popup.remove();
+            });
         },
 
         //
@@ -1141,7 +1485,14 @@ function (dojo, declare, gamegui, counter) {
                 'heal': '💚',
                 'sneak': '🥷',
                 'watch': '👁️',
-                'shuffle': '🔀'
+                'shuffle': '🔀',
+                'poison': '🧪',
+                'mark': '🎯',
+                'backstab': '🗡️',
+                'execute': '💀',
+                'sell': '🏷️',
+                'steal': '🤏',
+                'wealth': '💰'
             };
             return icons[cardType] || '🃏';
         },
@@ -1149,9 +1500,21 @@ function (dojo, declare, gamegui, counter) {
         getTagIcon: function(tagName) {
             const icons = {
                 'hidden': '👻',
-                'blocked': '🛡️'
+                'blocked': '🛡️',
+                'poisoned': '🧪',
+                'marked': '🎯'
             };
             return icons[tagName] || `[${tagName}]`;
+        },
+
+        getVictoryIcon: function(victoryType) {
+            const icons = {
+                'defeat_all': '⚔️',
+                'reach_location': '🏁',
+                'defeat_target': '💀',
+                'collect_item': '🎁'
+            };
+            return icons[victoryType] || '🏆';
         },
 
         getAnimationDelay: function() {
