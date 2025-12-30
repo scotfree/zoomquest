@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `connection` (
 -- Entities (players and monsters)
 CREATE TABLE IF NOT EXISTS `entity` (
   `entity_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `entity_type` enum('player','monster') NOT NULL,
+  `entity_type` enum('player','monster','character') NOT NULL,
   `player_id` int(10) unsigned DEFAULT NULL,
   `entity_name` varchar(64) NOT NULL,
   `entity_class` varchar(32) NOT NULL,

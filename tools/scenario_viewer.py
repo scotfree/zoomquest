@@ -59,15 +59,22 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             height: 100%;
         }}
         
+        /* ═══════════════════════════════════════════════════════════
+           SHARED STYLES (keep in sync with zoomquest.css)
+           ═══════════════════════════════════════════════════════════ */
+        
         .connection {{
-            stroke: #4a6fa5;
-            stroke-width: 2;
+            stroke: #000000;
+            stroke-width: 4;
             fill: none;
+            stroke-linecap: round;
+            opacity: 0.7;
         }}
         
         .connection-label {{
-            fill: #6a8fc5;
-            font-size: 10px;
+            fill: #6e7681;
+            font-size: 11px;
+            font-style: italic;
             text-anchor: middle;
             pointer-events: none;
         }}
@@ -77,12 +84,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }}
         
         .location-circle {{
-            stroke-width: 2;
+            stroke-width: 3;
             transition: stroke-width 0.2s;
+            opacity: 0.5;
         }}
         
         .location:hover .location-circle {{
-            stroke-width: 4;
+            stroke-width: 5;
+            opacity: 0.7;
         }}
         
         .location-settled .location-circle {{
@@ -97,16 +106,22 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         
         .location-name {{
             fill: #ffffff;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: bold;
             text-anchor: middle;
             pointer-events: none;
+            paint-order: stroke;
+            stroke: #000000;
+            stroke-width: 3px;
         }}
         
         .entity {{
             cursor: pointer;
-            font-size: 11px;
+            font-size: 13px;
             transition: font-weight 0.2s;
+            paint-order: stroke;
+            stroke: #000000;
+            stroke-width: 2px;
         }}
         
         .entity:hover {{
@@ -144,13 +159,13 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }}
         
         .scenario-victory {{
-            font-size: 13px;
+            font-size: 15px;
             color: #8b949e;
             line-height: 1.4;
         }}
         
         .scenario-stats {{
-            font-size: 12px;
+            font-size: 14px;
             color: #6e7681;
             margin-top: 10px;
             padding-top: 10px;
@@ -174,7 +189,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         
         .info-table {{
             width: 100%;
-            font-size: 12px;
+            font-size: 14px;
         }}
         
         .info-table tr {{
@@ -202,7 +217,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }}
         
         .info-section-title {{
-            font-size: 13px;
+            font-size: 15px;
             font-weight: bold;
             color: #8b949e;
             margin-bottom: 8px;
@@ -210,7 +225,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         
         .card-list, .entity-list, .item-list {{
             list-style: none;
-            font-size: 12px;
+            font-size: 14px;
         }}
         
         .card-list li, .entity-list li, .item-list li {{
@@ -778,16 +793,25 @@ def generate_html(scenario_path, output_path=None):
     characters = scenario.get('characters', [])
     monsters = scenario.get('monsters', [])
     
-    # Check for background image (same name as scenario, .png or .jpg)
-    scenario_base = Path(scenario_path).stem
-    scenario_dir = Path(scenario_path).parent
-    background_image = ''
-    for ext in ['.png', '.jpg', '.jpeg', '.webp']:
-        bg_path = scenario_dir / f"{scenario_base}{ext}"
-        if bg_path.exists():
-            background_image = bg_path.name
-            print(f"Found background image: {bg_path}")
-            break
+    # Get background image from JSON config (same as the game does)
+    # Adjust path to be relative from the HTML output location
+    background_image = scenario.get('background_image', '')
+    if background_image:
+        # The HTML is generated next to the JSON (in configs/)
+        # So we need to adjust paths that are relative to project root
+        # e.g., "img/foo.png" becomes "../img/foo.png"
+        scenario_dir = Path(scenario_path).parent
+        project_root = Path(__file__).parent.parent
+        
+        # Calculate relative path from HTML location to project root
+        try:
+            rel_to_root = os.path.relpath(project_root, scenario_dir)
+            background_image = os.path.join(rel_to_root, background_image)
+            print(f"Using background image: {background_image}")
+        except ValueError:
+            # Different drives on Windows, use absolute path
+            background_image = str(project_root / background_image)
+            print(f"Using absolute background image: {background_image}")
     
     # Generate HTML
     scenario_filename = Path(scenario_path).name

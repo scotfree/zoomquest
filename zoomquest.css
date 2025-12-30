@@ -56,6 +56,7 @@
     background: linear-gradient(135deg, var(--zq-bg-dark) 0%, var(--zq-bg-medium) 50%, var(--zq-bg-dark) 100%);
     border-radius: 12px;
     font-family: 'Cinzel', 'Georgia', serif;
+    font-size: 15px;  /* Base size - increase for larger text throughout */
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -284,8 +285,10 @@
     position: relative;
     background: radial-gradient(ellipse at center, var(--zq-bg-light) 0%, var(--zq-bg-dark) 100%);
     border-radius: 8px;
-    min-height: 500px;
+    min-height: 600px;
     overflow: hidden;
+    /* Prefer a roughly square-ish aspect for maps with backgrounds */
+    aspect-ratio: 4 / 3;
     
     /* Parchment texture effect */
     background-image: 
@@ -302,12 +305,15 @@
     pointer-events: none;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SHARED STYLES (keep in sync with tools/scenario_viewer.py)
+   ═══════════════════════════════════════════════════════════ */
+
 .zq-connection {
-    stroke: var(--zq-accent-copper);
-    stroke-width: 3;
+    stroke: #000000;
+    stroke-width: 4;
     stroke-linecap: round;
-    opacity: 0.6;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    opacity: 0.7;
 }
 
 #zq-nodes-container {
@@ -333,6 +339,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
+    opacity: 0.5;
     box-shadow: 
         0 4px 8px rgba(0, 0, 0, 0.4),
         inset 0 2px 4px rgba(255, 255, 255, 0.1);
@@ -341,6 +348,7 @@
 .zq-node:hover {
     transform: scale(1.1);
     border-color: var(--zq-accent-gold);
+    opacity: 0.7;
     box-shadow: 
         0 6px 16px rgba(0, 0, 0, 0.5),
         0 0 20px rgba(212, 175, 55, 0.3);
@@ -398,11 +406,13 @@
 }
 
 .zq-node-name {
-    font-size: 0.65em;
+    font-size: 0.85em;
+    font-weight: bold;
     color: var(--zq-text-primary);
     text-align: center;
     line-height: 1.2;
     padding: 2px 4px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
@@ -1298,6 +1308,141 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   CHARACTER SELECTION
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.zq-char-selection {
+    padding: 8px;
+}
+
+.zq-char-header {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.zq-char-header h3 {
+    color: var(--zq-accent-gold);
+    font-size: 1.3em;
+    margin-bottom: 8px;
+}
+
+.zq-char-header p {
+    color: var(--zq-text-secondary);
+    font-size: 0.95em;
+    margin: 0;
+}
+
+.zq-char-section-title {
+    color: var(--zq-text-secondary);
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 16px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--zq-accent-copper);
+}
+
+.zq-char-assigned-title {
+    opacity: 0.6;
+}
+
+.zq-char-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.zq-char-card {
+    background: linear-gradient(145deg, #2a2a4e, #1a1a2e);
+    border: 2px solid var(--zq-accent-copper);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.zq-char-selectable {
+    cursor: pointer;
+    border-color: var(--zq-accent-gold);
+}
+
+.zq-char-selectable:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
+    border-color: var(--zq-node-highlight);
+}
+
+.zq-char-selecting {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.zq-char-selected {
+    border-color: var(--zq-accent-green) !important;
+    box-shadow: 0 0 20px rgba(34, 139, 34, 0.5);
+    opacity: 1 !important;
+}
+
+.zq-char-taken {
+    opacity: 0.6;
+    border-style: dashed;
+}
+
+.zq-char-name {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--zq-text-primary);
+    margin-bottom: 4px;
+}
+
+.zq-char-class {
+    font-size: 0.9em;
+    color: var(--zq-accent-gold);
+    text-transform: capitalize;
+    margin-bottom: 8px;
+}
+
+.zq-char-location {
+    font-size: 0.85em;
+    color: var(--zq-text-secondary);
+    margin-bottom: 6px;
+}
+
+.zq-char-deck {
+    font-size: 0.9em;
+    color: var(--zq-text-muted);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.zq-char-select-hint {
+    font-size: 0.8em;
+    color: var(--zq-accent-green);
+    margin-top: 6px;
+}
+
+.zq-char-owner {
+    font-size: 0.85em;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+.zq-char-assigned .zq-char-card {
+    padding: 8px;
+}
+
+.zq-char-assigned .zq-char-name {
+    font-size: 0.95em;
+}
+
+.zq-char-assigned .zq-char-class {
+    font-size: 0.8em;
+    margin-bottom: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════════════ */
 
@@ -1314,7 +1459,8 @@
     }
 
     #zq-map-container {
-        min-height: 400px;
+        min-height: 350px;
+        aspect-ratio: 4 / 3;
     }
 
     #zq-bottom-panels {

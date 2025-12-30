@@ -22,6 +22,7 @@ use Bga\Games\Zoomquest\Helpers\Deck;
 use Bga\Games\Zoomquest\Helpers\ActionSequenceResolver;
 use Bga\Games\Zoomquest\Helpers\GameStateHelper;
 use Bga\Games\Zoomquest\Helpers\GoalTracker;
+use Bga\Games\Zoomquest\States\CharacterSelection;
 use Bga\Games\Zoomquest\States\RoundStart;
 
 require_once("constants.inc.php");
@@ -170,27 +171,24 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        // Setup player entities - randomly select characters for each player
+        // Setup character entities - create all characters as unassigned
+        // Players will select their characters in the CharacterSelection state
         $playerIds = array_keys($players);
         $playerCount = count($playerIds);
         $deck = $this->getDeck();
 
-        // Shuffle characters and select one for each player
         $characters = $config['characters'];
-        shuffle($characters);
         
-        foreach ($playerIds as $index => $bgaPlayerId) {
-            // Get character for this player (cycling if more players than characters)
-            $characterConfig = $characters[$index % count($characters)];
-            
+        foreach ($characters as $characterConfig) {
             $name = addslashes($characterConfig['name']);
             $class = addslashes($characterConfig['class']);
             $faction = addslashes($characterConfig['faction'] ?? 'players');
             $location = addslashes($characterConfig['location']);
 
+            // Create as 'character' type with no player_id - will be updated when selected
             $this->DbQuery(
                 "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, is_defeated) 
-                 VALUES ('player', '$bgaPlayerId', '$name', '$class', '$faction', '$location', 0)"
+                 VALUES ('character', NULL, '$name', '$class', '$faction', '$location', 0)"
             );
             $entityId = (int)$this->DbGetLastId();
 
@@ -249,8 +247,8 @@ class Game extends \Bga\GameFramework\Table
         // Activate first player
         $this->activeNextPlayer();
 
-        // Return initial state class for modern BGA framework
-        return RoundStart::class;
+        // Return initial state class - start with character selection
+        return CharacterSelection::class;
     }
 
     /**

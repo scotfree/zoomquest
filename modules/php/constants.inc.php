@@ -4,6 +4,7 @@
  * State constants
  */
 const ST_GAME_SETUP = 1;
+const ST_CHARACTER_SELECTION = 5;
 const ST_ROUND_START = 10;
 const ST_MOVE_SELECTION = 20;
 const ST_RESOLVE_MOVES = 30;

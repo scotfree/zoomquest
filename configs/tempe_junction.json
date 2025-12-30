@@ -1,7 +1,7 @@
 {
   "level_name": "tempe_junction",
   "round": 0,
-  "background_image": "",
+  "background_image": "img/tempe_junction.png",
   "victory": {
     "type": "defeat_all",
     "description": "Clear all monsters from Tempe Junction!"
@@ -149,22 +149,13 @@
         "y": 0.6152694610778443
       },
       {
-        "id": "inn",
-        "name": "The Dusty Boot Inn",
-        "description": "A welcoming tavern with warm beds",
-        "terrain": "settled",
-        "direction": "center",
-        "x": 0.23879082082965575,
-        "y": 0.584131736526946
-      },
-      {
         "id": "market",
         "name": "Market District",
         "description": "Stalls selling goods from across the frontier",
         "terrain": "settled",
         "direction": "south",
-        "x": 0.38349514563106796,
-        "y": 0.5281437125748503
+        "x": 0.4646954986760812,
+        "y": 0.5473053892215569
       },
       {
         "id": "blacksmith",
@@ -185,15 +176,6 @@
         "y": 0.5538922155688623
       },
       {
-        "id": "stables",
-        "name": "Town Stables",
-        "description": "Horses and supplies for the road",
-        "terrain": "settled",
-        "direction": "south",
-        "x": 0.3870697263901147,
-        "y": 0.692814371257485
-      },
-      {
         "id": "north_gate",
         "name": "North Gate",
         "description": "The road to the mountains begins here",
@@ -201,15 +183,6 @@
         "direction": "north",
         "x": 0.5158870255957635,
         "y": 0.3775449101796407
-      },
-      {
-        "id": "south_road",
-        "name": "South Road",
-        "description": "The main trade route heading south",
-        "terrain": "wilderness",
-        "direction": "south",
-        "x": 0.6571491615180935,
-        "y": 0.8715568862275449
       },
       {
         "id": "east_bridge",
@@ -221,13 +194,40 @@
         "y": 0.4125748502994012
       },
       {
-        "id": "west_woods",
-        "name": "Western Woods",
-        "description": "Dense forest with hidden paths",
+        "id": "mountain_pass",
+        "name": "Mountain Pass",
+        "description": "Entrance to the valley through the mountains.",
         "terrain": "wilderness",
         "direction": "west",
-        "x": 0.025551632833186223,
-        "y": 0.4407185628742515
+        "x": 0.052030008826125324,
+        "y": 0.6311377245508982
+      },
+      {
+        "id": "inn",
+        "name": "The Straggler inn",
+        "description": "You know the kind of place.",
+        "terrain": "settled",
+        "direction": "south",
+        "x": 0.2802294792586055,
+        "y": 0.5745508982035928
+      },
+      {
+        "id": "forest",
+        "name": "Dark Forest",
+        "description": "A shadowy forest path",
+        "terrain": "wilderness",
+        "direction": "center",
+        "x": 0.0410414827890556,
+        "y": 0.21347305389221558
+      },
+      {
+        "id": "ruins",
+        "name": "Ancient Ruins",
+        "description": "Crumbling stone structures overrun by monsters",
+        "terrain": "wilderness",
+        "direction": "north",
+        "x": 0.3027802294792586,
+        "y": 0.19341317365269461
       },
       {
         "id": "abandoned_mine",
@@ -237,6 +237,15 @@
         "direction": "west",
         "x": 0.21062665489849955,
         "y": 0.3122754491017964
+      },
+      {
+        "id": "caves",
+        "name": "Hidden Caves",
+        "description": "A network of natural caverns",
+        "terrain": "wilderness",
+        "direction": "west",
+        "x": 0.19032656663724623,
+        "y": 0.07125748502994012
       },
       {
         "id": "graveyard",
@@ -257,25 +266,68 @@
         "y": 0.17155688622754492
       },
       {
+        "id": "stables",
+        "name": "Town Stables",
+        "description": "Horses and supplies for the road",
+        "terrain": "settled",
+        "direction": "center",
+        "x": 0.39589585172109437,
+        "y": 0.6859281437125748
+      },
+      {
+        "id": "illplaced",
+        "name": "Illplaced Farm",
+        "description": "They should have knowed.",
+        "terrain": "settled",
+        "direction": "south",
+        "x": 0.22908208296557808,
+        "y": 0.832934131736527
+      },
+      {
         "id": "farm",
         "name": "Abandoned Farm",
         "description": "Overgrown fields and a collapsed barn",
         "terrain": "wilderness",
         "direction": "south",
-        "x": 0.9092233009708739,
-        "y": 0.8637125748502995
+        "x": 0.7238745371590934,
+        "y": 0.9128143045344148
       },
+
       {
-        "id": "caves",
-        "name": "Hidden Caves",
-        "description": "A network of natural caverns",
+        "id": "south_road",
+        "name": "South Road",
+        "description": "The main trade route heading south",
         "terrain": "wilderness",
-        "direction": "west",
-        "x": 0.07293909973521623,
-        "y": 0.13952095808383233
-      }
+        "direction": "south",
+        "x": 0.45503084241327696,
+        "y": 0.8619759848971988
+      }  
     ],
     "connections": [
+      {
+        "name": "South Trail",
+        "from": "stables",
+        "to": "south_road",
+        "bidirectional": true
+      },
+      {
+        "name": "Farm Track",
+        "from": "south_road",
+        "to": "farm",
+        "bidirectional": true
+      },
+      {
+        "name": "Tricky Track",
+        "from": "south_road",
+        "to": "illplaced",
+        "bidirectional": true
+      },
+      {
+        "name": "Gut Lane",
+        "from": "stables",
+        "to": "town_square",
+        "bidirectional": true
+      },
       {
         "name": "Main Street",
         "from": "town_square",
@@ -301,8 +353,8 @@
         "bidirectional": true
       },
       {
-        "name": "Stable Path",
-        "from": "market",
+        "name": "Poorly Path",
+        "from": "illplaced",
         "to": "stables",
         "bidirectional": true
       },
@@ -313,8 +365,14 @@
         "bidirectional": true
       },
       {
+        "name": "Dark Path",
+        "from": "caves",
+        "to": "graveyard",
+        "bidirectional": true
+      },
+      {
         "name": "Cemetery Path",
-        "from": "chapel",
+        "from": "north_gate",
         "to": "graveyard",
         "bidirectional": true
       },
@@ -331,6 +389,18 @@
         "bidirectional": true
       },
       {
+        "name": "Tricky Track",
+        "from": "south_road",
+        "to": "illplaced",
+        "bidirectional": true
+      },
+      {
+        "name": "Gut Lane",
+        "from": "stables",
+        "to": "town_square",
+        "bidirectional": true
+      },
+      {
         "name": "Bridge Road",
         "from": "blacksmith",
         "to": "east_bridge",
@@ -343,21 +413,33 @@
         "bidirectional": true
       },
       {
-        "name": "Forest Edge",
+        "name": "Inn's Edge",
         "from": "inn",
-        "to": "west_woods",
+        "to": "mountain_pass",
         "bidirectional": true
       },
       {
         "name": "Mine Entrance",
-        "from": "west_woods",
+        "from": "forest",
         "to": "abandoned_mine",
         "bidirectional": true
       },
       {
+        "name": "Forest Descent",
+        "from": "mountain_pass",
+        "to": "forest",
+        "bidirectional": true
+      },
+      {
         "name": "Cave Tunnel",
-        "from": "abandoned_mine",
+        "from": "ruins",
         "to": "caves",
+        "bidirectional": true
+      },
+      {
+        "name": "Ruined Path",
+        "from": "ruins",
+        "to": "abandoned_mine",
         "bidirectional": true
       }
     ]

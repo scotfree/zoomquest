@@ -1,7 +1,7 @@
 {
   "level_name": "test",
   "round": 0,
-  "background_image": "",
+  "background_image": "img/test_0.png",
   "victory": {
     "type": "defeat_all",
     "description": "Defeat all monsters to win!"
@@ -147,25 +147,96 @@
   ],
   "factions": {
     "matrix": {
-      "players": { "players": "friendly", "goblins": "hostile", "undead": "hostile", "merchants": "neutral" },
-      "goblins": { "players": "hostile", "goblins": "friendly", "undead": "neutral", "merchants": "hostile" },
-      "undead": { "players": "hostile", "goblins": "neutral", "undead": "friendly", "merchants": "hostile" },
-      "merchants": { "players": "neutral", "goblins": "hostile", "undead": "hostile", "merchants": "friendly" }
+      "players": {
+        "players": "friendly",
+        "goblins": "hostile",
+        "criminals": "hostile",
+        "merchants": "neutral"
+      },
+      "goblins": {
+        "players": "hostile",
+        "goblins": "friendly",
+        "criminals": "neutral",
+        "merchants": "hostile"
+      },
+      "criminals": {
+        "players": "hostile",
+        "goblins": "neutral",
+        "criminals": "friendly",
+        "merchants": "neutral"
+      },
+      "merchants": {
+        "players": "neutral",
+        "goblins": "hostile",
+        "criminals": "hostile",
+        "merchants": "friendly"
+      }
     }
   },
   "map": {
     "locations": [
-      { "id": "village", "name": "Village", "description": "A peaceful starting village", "terrain": "settled", "direction": "south", "x": 0.5, "y": 0.85 },
-      { "id": "forest", "name": "Dark Forest", "description": "A shadowy forest path", "terrain": "wilderness", "direction": "center", "x": 0.5, "y": 0.55 },
-      { "id": "cave", "name": "Goblin Cave", "description": "A damp cave echoing with growls", "terrain": "wilderness", "direction": "west", "x": 0.15, "y": 0.35 },
-      { "id": "mountain", "name": "Mountain Pass", "description": "A narrow pass through the peaks", "terrain": "wilderness", "direction": "east", "x": 0.85, "y": 0.35 },
-      { "id": "ruins", "name": "Ancient Ruins", "description": "Crumbling stone structures overrun by monsters", "terrain": "wilderness", "direction": "north", "x": 0.85, "y": 0.1 }
+      {
+        "id": "stables",
+        "name": "Town Stables",
+        "description": "Horses and supplies for the road",
+        "terrain": "settled",
+        "direction": "center",
+        "x": 0.5282877316857899,
+        "y": 0.05119760479041916
+      },
+      {
+        "id": "illplaced",
+        "name": "Illplaced Farm",
+        "description": "They should have knowed.",
+        "terrain": "settled",
+        "direction": "south",
+        "x": 0.03225948808473076,
+        "y": 0.4341317365269461
+      },
+      {
+        "id": "farm",
+        "name": "Abandoned Farm",
+        "description": "Overgrown fields and a collapsed barn",
+        "terrain": "wilderness",
+        "direction": "south",
+        "x": 0.9824800093567987,
+        "y": 1
+      },
+      {
+        "id": "south_road",
+        "name": "South Road",
+        "description": "The main trade route heading south",
+        "terrain": "wilderness",
+        "direction": "south",
+        "x": 0.6059575855730298,
+        "y": 0.5494011345977976
+      }
     ],
     "connections": [
-      { "name": "Forest Trail", "from": "village", "to": "forest", "bidirectional": true },
-      { "name": "Cave Entrance", "from": "forest", "to": "cave", "bidirectional": true },
-      { "name": "Mountain Path", "from": "forest", "to": "mountain", "bidirectional": true },
-      { "name": "Ruins Approach", "from": "mountain", "to": "ruins", "bidirectional": true }
+      {
+        "name": "South Trail",
+        "from": "stables",
+        "to": "south_road",
+        "bidirectional": true
+      },
+      {
+        "name": "Farm Track",
+        "from": "south_road",
+        "to": "farm",
+        "bidirectional": true
+      },
+      {
+        "name": "Tricky Track",
+        "from": "south_road",
+        "to": "illplaced",
+        "bidirectional": true
+      },
+      {
+        "name": "Gut Lane",
+        "from": "stables",
+        "to": "town_square",
+        "bidirectional": true
+      }
     ]
   },
   "characters": [
@@ -173,71 +244,123 @@
       "name": "Bob",
       "class": "warrior",
       "faction": "players",
-      "location": "village",
+      "location": "farm",
       "decks": {
-        "active": ["attack", "attack", "defend", "attack", "heal"]
+        "active": [
+          "attack",
+          "attack",
+          "attack",
+          "attack",
+          "attack"
+        ]
       }
     },
     {
       "name": "Alice",
       "class": "cleric",
       "faction": "players",
-      "location": "village",
+      "location": "farm",
       "decks": {
-        "active": ["defend", "heal", "heal", "defend", "attack"]
+        "active": [
+          "defend",
+          "heal",
+          "defend",
+          "heal",
+          "attack"
+        ]
       }
     },
     {
       "name": "Charlie",
-      "class": "ranger",
+      "class": "knight",
       "faction": "players",
-      "location": "forest",
+      "location": "farm",
       "decks": {
-        "active": ["attack", "attack", "defend", "sneak", "heal"]
+        "active": [
+          "attack",
+          "defend",
+          "attack",
+          "defend",
+          "attack",
+          "attack"
+        ]
       }
     },
     {
       "name": "Diana",
       "class": "paladin",
       "faction": "players",
-      "location": "village",
+      "location": "farm",
       "decks": {
-        "active": ["attack", "defend", "heal", "defend", "attack"]
+        "active": [
+          "attack",
+          "defend",
+          "heal",
+          "defend",
+          "attack"
+        ]
       }
     },
     {
       "name": "Erik",
       "class": "rogue",
       "faction": "players",
-      "location": "mountain",
+      "location": "farm",
       "decks": {
-        "active": ["sneak", "attack", "attack", "defend", "sneak"]
+        "active": [
+          "sneak",
+          "sneak",
+          "attack",
+          "sneak",
+          "steal"
+        ]
       }
     }
   ],
   "monsters": [
     {
-      "name": "Goblin",
-      "class": "goblin",
-      "faction": "goblins",
-      "location": "cave",
+      "name": "Bandito",
+      "class": "bandit",
+      "faction": "criminals",
+      "location": "south_road",
       "decks": {
-        "active": ["attack", "poison", "watch"]
+        "active": [
+          "attack",
+          "defend"
+        ]
       },
       "items": [
-        { "name": "Rusty Sword", "type": "new_action", "data": { "card_type": "attack" } }
+        {
+          "name": "Rusty Sword",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
       ]
     },
     {
-      "name": "Skeleton",
-      "class": "undead",
-      "faction": "undead",
-      "location": "ruins",
+      "name": "Goblin",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "illplaced",
       "decks": {
-        "active": ["attack", "attack", "defend", "defend", "defend"]
+        "active": [
+          "attack",
+          "defend",
+          "attack",
+          "defend",
+          "attack"
+        ]
       },
       "items": [
-        { "name": "Ancient Blade", "type": "new_action", "data": { "card_type": "attack" } }
+        {
+          "name": "Ancient Blade",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
       ]
     }
   ]

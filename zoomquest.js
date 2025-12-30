@@ -132,7 +132,9 @@ function (dojo, declare, gamegui, counter) {
 
             // Apply scenario background image if provided
             if (this.gamedatas.background_image) {
-                mapContainer.style.backgroundImage = `url('${this.gamedatas.background_image}')`;
+                // In BGA, use g_gamethemeurl to get correct path to game assets
+                const imgUrl = g_gamethemeurl + this.gamedatas.background_image;
+                mapContainer.style.backgroundImage = `url('${imgUrl}')`;
                 mapContainer.style.backgroundSize = 'cover';
                 mapContainer.style.backgroundPosition = 'center';
             }
@@ -187,8 +189,12 @@ function (dojo, declare, gamegui, counter) {
             // Use x,y coordinates from config if available (normalized 0-1)
             // Falls back to circular layout if no coordinates defined
             const positions = {};
-            const mapWidth = 600;  // SVG/container width
-            const mapHeight = 500; // SVG/container height
+            
+            // Get actual container dimensions
+            const container = document.getElementById('zq-map-container');
+            const rect = container.getBoundingClientRect();
+            const mapWidth = rect.width || 600;
+            const mapHeight = rect.height || 500;
             const padding = 50;    // Keep nodes away from edges
             
             const hasCoordinates = map.locations.some(loc => loc.x !== undefined && loc.y !== undefined);
@@ -205,18 +211,18 @@ function (dojo, declare, gamegui, counter) {
                 });
             } else {
                 // Fallback: circular layout
-            const nodeCount = map.locations.length;
+                const nodeCount = map.locations.length;
                 const centerX = mapWidth / 2;
                 const centerY = mapHeight / 2;
                 const radius = Math.min(mapWidth, mapHeight) / 2 - padding;
 
-            map.locations.forEach((loc, index) => {
-                const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
-                positions[loc.location_id] = {
-                    x: centerX + radius * Math.cos(angle),
-                    y: centerY + radius * Math.sin(angle)
-                };
-            });
+                map.locations.forEach((loc, index) => {
+                    const angle = (2 * Math.PI * index / nodeCount) - Math.PI / 2;
+                    positions[loc.location_id] = {
+                        x: centerX + radius * Math.cos(angle),
+                        y: centerY + radius * Math.sin(angle)
+                    };
+                });
             }
 
             return positions;
@@ -350,6 +356,14 @@ function (dojo, declare, gamegui, counter) {
             console.log('isCurrentPlayerActive:', this.isCurrentPlayerActive());
 
             switch (stateName) {
+                case 'CharacterSelection':
+                    const isMultiactiveChar = args.multiactive && args.multiactive.includes(String(this.player_id));
+                    const isActiveChar = this.isCurrentPlayerActive() || isMultiactiveChar;
+                    console.log('CharacterSelection state - isActive:', isActiveChar);
+                    
+                    this.showCharacterSelectionUI(args.args, isActiveChar);
+                    break;
+
                 case 'MoveSelection':
                     // For multiactive states, check if this player is in the multiactive list
                     const isMultiactive = args.multiactive && args.multiactive.includes(String(this.player_id));
@@ -390,6 +404,10 @@ function (dojo, declare, gamegui, counter) {
             console.log('Leaving state:', stateName);
 
             switch (stateName) {
+                case 'CharacterSelection':
+                    this.hideCharacterSelectionUI();
+                    break;
+
                 case 'MoveSelection':
                     this.hideMoveSelectionUI();
                     break;
@@ -403,6 +421,133 @@ function (dojo, declare, gamegui, counter) {
 
         onUpdateActionButtons: function(stateName, args) {
             console.log('onUpdateActionButtons:', stateName, args);
+        },
+
+        //
+        // ──────────────────────────────────────────────────────────────────────
+        //   CHARACTER SELECTION UI
+        // ──────────────────────────────────────────────────────────────────────
+        //
+
+        showCharacterSelectionUI: function(args, isActive) {
+            const panel = document.getElementById('zq-action-panel');
+            const buttons = document.getElementById('zq-action-buttons');
+
+            if (!panel || !buttons) {
+                console.error('Action panel elements not found');
+                return;
+            }
+
+            panel.classList.add('zq-panel-active');
+
+            const available = args.availableCharacters || [];
+            const assigned = args.assignedCharacters || [];
+
+            // Build character cards
+            let cardsHtml = '';
+            
+            if (available.length > 0) {
+                cardsHtml += '<div class="zq-char-section-title">Available Characters</div>';
+                cardsHtml += '<div class="zq-char-grid">';
+                available.forEach(char => {
+                    const deckSummary = this.summarizeDeck(char.deck || []);
+                    cardsHtml += `
+                        <div class="zq-char-card ${isActive ? 'zq-char-selectable' : ''}" 
+                             data-character-id="${char.entity_id}">
+                            <div class="zq-char-name">${char.entity_name}</div>
+                            <div class="zq-char-class">${char.entity_class}</div>
+                            <div class="zq-char-location">📍 ${char.location_name}</div>
+                            <div class="zq-char-deck">${deckSummary}</div>
+                            ${isActive ? '<div class="zq-char-select-hint">Click to select</div>' : ''}
+                        </div>
+                    `;
+                });
+                cardsHtml += '</div>';
+            }
+
+            if (assigned.length > 0) {
+                cardsHtml += '<div class="zq-char-section-title zq-char-assigned-title">Already Chosen</div>';
+                cardsHtml += '<div class="zq-char-grid zq-char-assigned">';
+                assigned.forEach(char => {
+                    cardsHtml += `
+                        <div class="zq-char-card zq-char-taken" style="border-color: #${char.player_color}">
+                            <div class="zq-char-name">${char.entity_name}</div>
+                            <div class="zq-char-class">${char.entity_class}</div>
+                            <div class="zq-char-owner" style="color: #${char.player_color}">${char.player_name}</div>
+                        </div>
+                    `;
+                });
+                cardsHtml += '</div>';
+            }
+
+            buttons.innerHTML = `
+                <div class="zq-char-selection">
+                    <div class="zq-char-header">
+                        <h3>⚔️ Choose Your Character</h3>
+                        ${isActive ? '<p>Select a character to begin your adventure</p>' : '<p>Waiting for other players...</p>'}
+                    </div>
+                    ${cardsHtml}
+                </div>
+            `;
+
+            // Add click handlers for selectable characters
+            if (isActive) {
+                document.querySelectorAll('.zq-char-selectable').forEach(card => {
+                    card.addEventListener('click', e => this.onCharacterCardClick(e));
+                });
+            }
+        },
+
+        hideCharacterSelectionUI: function() {
+            const panel = document.getElementById('zq-action-panel');
+            const buttons = document.getElementById('zq-action-buttons');
+
+            if (panel) {
+                panel.classList.remove('zq-panel-active');
+            }
+            if (buttons) {
+                buttons.innerHTML = '<div class="zq-no-action">Waiting for game to start...</div>';
+            }
+        },
+
+        summarizeDeck: function(deck) {
+            if (!deck || deck.length === 0) return 'No cards';
+            
+            const counts = {};
+            deck.forEach(card => {
+                counts[card] = (counts[card] || 0) + 1;
+            });
+            
+            return Object.entries(counts)
+                .map(([card, count]) => `${this.getCardIcon(card)}×${count}`)
+                .join(' ');
+        },
+
+        onCharacterCardClick: function(e) {
+            const card = e.currentTarget;
+            const characterId = parseInt(card.dataset.characterId);
+            
+            if (!characterId) return;
+
+            // Disable all cards to prevent double-click
+            document.querySelectorAll('.zq-char-selectable').forEach(c => {
+                c.classList.remove('zq-char-selectable');
+                c.classList.add('zq-char-selecting');
+            });
+            card.classList.add('zq-char-selected');
+
+            // Send selection to server
+            this.bgaPerformAction('actSelectCharacter', {
+                characterId: characterId
+            }).catch(err => {
+                console.error('Character selection failed:', err);
+                // Re-enable selection on error
+                document.querySelectorAll('.zq-char-selecting').forEach(c => {
+                    c.classList.remove('zq-char-selecting');
+                    c.classList.add('zq-char-selectable');
+                });
+                card.classList.remove('zq-char-selected');
+            });
         },
 
         //
@@ -935,6 +1080,24 @@ function (dojo, declare, gamegui, counter) {
         setupNotifications: function() {
             console.log('Setting up notifications');
             this.bgaSetupPromiseNotifications();
+        },
+
+        notif_characterSelected: async function(args) {
+            console.log('Character selected:', args);
+            
+            // Update the UI to show this character as taken
+            const card = document.querySelector(`.zq-char-card[data-character-id="${args.character_id}"]`);
+            if (card) {
+                card.classList.remove('zq-char-selectable', 'zq-char-selecting');
+                card.classList.add('zq-char-taken');
+                card.innerHTML = `
+                    <div class="zq-char-name">${args.character_name}</div>
+                    <div class="zq-char-class">${args.character_class}</div>
+                    <div class="zq-char-owner">${args.player_name}</div>
+                `;
+            }
+            
+            await this.wait(300);
         },
 
         notif_roundStart: async function(args) {
