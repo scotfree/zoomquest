@@ -72,8 +72,45 @@ class SequenceCleanup extends GameState
             'defeated' => $defeated,
         ]);
 
-        // End the sequence
-        $sequenceResolver->endSequence($sequenceId);
+        // Log the sequence to location history
+        $sequence = $this->game->getObjectFromDB(
+            "SELECT location_id FROM action_sequence WHERE sequence_id = $sequenceId"
+        );
+        if ($sequence) {
+            $gameRound = $stateHelper->getRound();
+            
+            // Get the accumulated sequence log (detailed round-by-round actions)
+            $sequenceLogJson = $stateHelper->get(STATE_SEQUENCE_LOG);
+            $sequenceLog = $sequenceLogJson ? json_decode($sequenceLogJson, true) : [];
+            
+            $logData = [
+                'participants' => $participants,
+                'survivors' => $survivors,
+                'defeated' => $defeated,
+                'rounds' => $sequenceLog, // Detailed round-by-round actions
+            ];
+            $logId = $this->game->getLocationLog()->addSequenceSummary($sequence['location_id'], $gameRound, $logData);
+            
+            // Notify clients to update their location logs
+            $this->notify->all('locationLogAdded', '', [
+                'location_id' => $sequence['location_id'],
+                'round' => $gameRound,
+                'log_type' => 'sequence',
+                'log_data' => $logData,
+                'log_id' => $logId,
+            ]);
+        }
+
+        // End the sequence (applies poison damage, clears non-persistent markers)
+        $endResults = $sequenceResolver->endSequence($sequenceId);
+        
+        // Notify about poison damage
+        if (!empty($endResults)) {
+            $this->notify->all('sequenceEndEffects', '', [
+                'sequence_id' => $sequenceId,
+                'effects' => $endResults,
+            ]);
+        }
 
         // Check for more sequences
         $sequencesJson = $stateHelper->get(STATE_SEQUENCES_TO_RESOLVE);

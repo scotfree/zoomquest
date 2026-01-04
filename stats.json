@@ -18,9 +18,9 @@
             "name": "Battles won",
             "type": "int"
         },
-        "cards_destroyed": {
+        "cards_damaged": {
             "id": 21,
-            "name": "Cards destroyed (dealt)",
+            "name": "Cards damaged (dealt)",
             "type": "int"
         },
         "cards_lost": {

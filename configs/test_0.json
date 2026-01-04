@@ -199,8 +199,8 @@
         "description": "Overgrown fields and a collapsed barn",
         "terrain": "wilderness",
         "direction": "south",
-        "x": 0.9824800093567987,
-        "y": 1
+        "x": 0.9003970437786875,
+        "y": 0.5544910179640719
       },
       {
         "id": "south_road",
@@ -208,8 +208,8 @@
         "description": "The main trade route heading south",
         "terrain": "wilderness",
         "direction": "south",
-        "x": 0.6059575855730298,
-        "y": 0.5494011345977976
+        "x": 0.512400657064645,
+        "y": 0.5805388591486957
       }
     ],
     "connections": [
@@ -234,7 +234,7 @@
       {
         "name": "Gut Lane",
         "from": "stables",
-        "to": "town_square",
+        "to": "farm",
         "bidirectional": true
       }
     ]
@@ -247,11 +247,11 @@
       "location": "farm",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "attack",
-          "attack",
-          "attack"
+          {"name": "Greatsword", "type": "attack", "power": 2},
+          {"name": "Dagger", "type": "attack", "power": 1},
+          {"name": "Sword", "type": "attack", "power": 1},
+          {"name": "Axe", "type": "attack", "power": 1},
+          {"name": "Shield Bash", "type": "attack", "power": 1}
         ]
       }
     },
@@ -262,11 +262,11 @@
       "location": "farm",
       "decks": {
         "active": [
-          "defend",
-          "heal",
-          "defend",
-          "heal",
-          "attack"
+          {"name": "Blessed Shield", "type": "defend", "power": 2},
+          {"name": "Divine Heal", "type": "heal", "power": 2},
+          {"name": "Ward", "type": "defend", "power": 1},
+          {"name": "Prayer", "type": "heal", "power": 1},
+          {"name": "Holy Mace", "type": "attack", "power": 1}
         ]
       }
     },
@@ -277,12 +277,12 @@
       "location": "farm",
       "decks": {
         "active": [
-          "attack",
-          "defend",
-          "attack",
-          "defend",
-          "attack",
-          "attack"
+          {"name": "Lance", "type": "attack", "power": 2},
+          {"name": "Tower Shield", "type": "defend", "power": 2},
+          {"name": "Sword", "type": "attack", "power": 1},
+          {"name": "Buckler", "type": "defend", "power": 1},
+          {"name": "Gauntlet Strike", "type": "attack", "power": 1},
+          {"name": "Helmet Butt", "type": "attack", "power": 1}
         ]
       }
     },
@@ -293,11 +293,11 @@
       "location": "farm",
       "decks": {
         "active": [
-          "attack",
-          "defend",
-          "heal",
-          "defend",
-          "attack"
+          {"name": "Smite", "type": "attack", "power": 2},
+          {"name": "Holy Shield", "type": "defend", "power": 1},
+          {"name": "Lay on Hands", "type": "heal", "power": 2},
+          {"name": "Divine Protection", "type": "defend", "power": 1},
+          {"name": "Mace", "type": "attack", "power": 1}
         ]
       }
     },
@@ -308,11 +308,11 @@
       "location": "farm",
       "decks": {
         "active": [
-          "sneak",
-          "sneak",
-          "attack",
-          "sneak",
-          "steal"
+          {"name": "Cloak", "type": "sneak", "power": 2},
+          {"name": "Shadow Step", "type": "sneak", "power": 1},
+          {"name": "Backstab Dagger", "type": "attack", "power": 1},
+          {"name": "Fade", "type": "sneak", "power": 1},
+          {"name": "Pickpocket", "type": "steal", "power": 1}
         ]
       }
     }
@@ -325,8 +325,8 @@
       "location": "south_road",
       "decks": {
         "active": [
-          "attack",
-          "defend"
+          {"name": "Cutlass", "type": "attack", "power": 1},
+          {"name": "Parry", "type": "defend", "power": 1}
         ]
       },
       "items": [
@@ -334,7 +334,9 @@
           "name": "Rusty Sword",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "name": "Rusty Sword",
+            "type": "attack",
+            "power": 1
           }
         }
       ]
@@ -346,11 +348,11 @@
       "location": "illplaced",
       "decks": {
         "active": [
-          "attack",
-          "defend",
-          "attack",
-          "defend",
-          "attack"
+          {"name": "Crude Knife", "type": "attack", "power": 1},
+          {"name": "Goblin Shield", "type": "defend", "power": 1},
+          {"name": "Scratch", "type": "attack", "power": 1},
+          {"name": "Duck", "type": "defend", "power": 1},
+          {"name": "Poison Spit", "type": "poison", "power": 2}
         ]
       },
       "items": [
@@ -358,7 +360,9 @@
           "name": "Ancient Blade",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "name": "Ancient Blade",
+            "type": "attack",
+            "power": 2
           }
         }
       ]

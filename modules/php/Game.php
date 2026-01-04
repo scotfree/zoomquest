@@ -22,6 +22,7 @@ use Bga\Games\Zoomquest\Helpers\Deck;
 use Bga\Games\Zoomquest\Helpers\ActionSequenceResolver;
 use Bga\Games\Zoomquest\Helpers\GameStateHelper;
 use Bga\Games\Zoomquest\Helpers\GoalTracker;
+use Bga\Games\Zoomquest\Helpers\MarkerHelper;
 use Bga\Games\Zoomquest\States\CharacterSelection;
 use Bga\Games\Zoomquest\States\RoundStart;
 
@@ -35,6 +36,8 @@ class Game extends \Bga\GameFramework\Table
     private ?ActionSequenceResolver $actionSequenceResolver = null;
     private ?GameStateHelper $gameStateHelper = null;
     private ?GoalTracker $goalTracker = null;
+    private ?Helpers\LocationLog $locationLog = null;
+    private ?MarkerHelper $markerHelper = null;
 
     function __construct()
     {
@@ -65,12 +68,27 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Get MarkerHelper (lazy initialization)
+     */
+    public function getMarkerHelper(): MarkerHelper
+    {
+        if ($this->markerHelper === null) {
+            $this->markerHelper = new MarkerHelper($this);
+        }
+        return $this->markerHelper;
+    }
+
+    /**
      * Get ActionSequenceResolver helper (lazy initialization)
      */
     public function getActionSequenceResolver(): ActionSequenceResolver
     {
         if ($this->actionSequenceResolver === null) {
-            $this->actionSequenceResolver = new ActionSequenceResolver($this, $this->getDeck());
+            $this->actionSequenceResolver = new ActionSequenceResolver(
+                $this, 
+                $this->getDeck(), 
+                $this->getMarkerHelper()
+            );
         }
         return $this->actionSequenceResolver;
     }
@@ -95,6 +113,17 @@ class Game extends \Bga\GameFramework\Table
             $this->goalTracker = new GoalTracker($this);
         }
         return $this->goalTracker;
+    }
+
+    /**
+     * Get LocationLog helper (lazy initialization)
+     */
+    public function getLocationLog(): Helpers\LocationLog
+    {
+        if ($this->locationLog === null) {
+            $this->locationLog = new Helpers\LocationLog($this);
+        }
+        return $this->locationLog;
     }
 
     /**
@@ -242,7 +271,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Initialize stats
         $this->tableStats->init(['rounds_played', 'monsters_defeated'], 0);
-        $this->playerStats->init(['battles_won', 'cards_destroyed', 'cards_lost', 'cards_healed'], 0);
+        $this->playerStats->init(['battles_won', 'cards_damaged', 'cards_lost', 'cards_healed'], 0);
 
         // Activate first player
         $this->activeNextPlayer();
@@ -318,6 +347,9 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
+        // Location logs (action sequence history per location)
+        $result['location_logs'] = $this->getLocationLog()->getAllLogs();
+
         return $result;
     }
 
@@ -343,16 +375,29 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Record a move choice for a player
+     * @param bool $isPlanning If true, player chose "Plan" and won't participate in action sequences
      */
-    public function recordMoveChoice(int $playerId, ?string $targetLocation = null, ?string $cardOrder = null): void
+    public function recordMoveChoice(int $playerId, ?string $targetLocation = null, ?string $cardOrder = null, bool $isPlanning = false): void
     {
         $targetSql = $targetLocation ? "'" . addslashes($targetLocation) . "'" : 'NULL';
         $cardOrderSql = $cardOrder ? "'" . addslashes($cardOrder) . "'" : 'NULL';
+        $isPlanningInt = $isPlanning ? 1 : 0;
         $this->DbQuery(
-            "INSERT INTO move_choice (player_id, target_location, card_order) 
-             VALUES ($playerId, $targetSql, $cardOrderSql)
-             ON DUPLICATE KEY UPDATE target_location = $targetSql, card_order = $cardOrderSql"
+            "INSERT INTO move_choice (player_id, target_location, card_order, is_planning) 
+             VALUES ($playerId, $targetSql, $cardOrderSql, $isPlanningInt)
+             ON DUPLICATE KEY UPDATE target_location = $targetSql, card_order = $cardOrderSql, is_planning = $isPlanningInt"
         );
+    }
+
+    /**
+     * Check if a player chose to plan (skip action sequence)
+     */
+    public function isPlayerPlanning(int $playerId): bool
+    {
+        $result = $this->getUniqueValueFromDB(
+            "SELECT is_planning FROM move_choice WHERE player_id = $playerId"
+        );
+        return $result == 1;
     }
 
     /**

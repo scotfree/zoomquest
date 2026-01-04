@@ -19,15 +19,30 @@ class Deck
     }
 
     /**
-     * Create cards for an entity from an array of card types
+     * Create cards for an entity from an array of card definitions
+     * Each card can be:
+     *   - A string (card type) for backward compatibility
+     *   - An array with 'name', 'type', and optional 'power' (default 1)
      */
-    public function createDeck(int $entityId, array $cardTypes): void
+    public function createDeck(int $entityId, array $cards): void
     {
         $order = 0;
-        foreach ($cardTypes as $cardType) {
+        foreach ($cards as $card) {
+            if (is_string($card)) {
+                // Backward compatibility: just a card type string
+                $cardType = addslashes($card);
+                $cardName = ucfirst($card); // Default name from type
+                $cardPower = 1;
+            } else {
+                // New format: array with name, type, power
+                $cardType = addslashes($card['type'] ?? 'attack');
+                $cardName = addslashes($card['name'] ?? ucfirst($cardType));
+                $cardPower = (int)($card['power'] ?? 1);
+            }
+            
             $this->game->DbQuery(
-                "INSERT INTO card (entity_id, card_type, card_pile, card_order) 
-                 VALUES ($entityId, '$cardType', 'active', $order)"
+                "INSERT INTO card (entity_id, card_name, card_type, card_power, card_pile, card_order) 
+                 VALUES ($entityId, '$cardName', '$cardType', $cardPower, 'active', $order)"
             );
             $order++;
         }
@@ -66,7 +81,7 @@ class Deck
     public function drawTop(int $entityId): ?array
     {
         $card = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type FROM card 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
              WHERE entity_id = $entityId AND card_pile = 'active' 
              ORDER BY card_order ASC LIMIT 1"
         );
@@ -87,12 +102,12 @@ class Deck
 
     /**
      * Get all active cards for an entity, ordered by card_order
-     * @return array List of cards with id and type
+     * @return array List of cards with id, name, type, power
      */
     public function getActiveCards(int $entityId): array
     {
         return $this->game->getObjectListFromDB(
-            "SELECT card_id, card_type FROM card 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
              WHERE entity_id = $entityId AND card_pile = 'active' 
              ORDER BY card_order ASC"
         );
@@ -155,24 +170,24 @@ class Deck
     }
 
     /**
-     * Move a card to destroyed pile
+     * Move a card to inactive pile (damage)
      */
     public function destroy(int $cardId): void
     {
         $this->game->DbQuery(
-            "UPDATE card SET card_pile = 'destroyed' WHERE card_id = $cardId"
+            "UPDATE card SET card_pile = 'inactive' WHERE card_id = $cardId"
         );
     }
 
     /**
-     * Move a random card from destroyed to discard (heal/rest effect)
-     * @return array|null The healed card or null if no destroyed cards
+     * Move a random card from inactive to discard (heal/rest effect)
+     * @return array|null The healed card or null if no inactive cards
      */
     public function healOne(int $entityId): ?array
     {
         $card = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type FROM card 
-             WHERE entity_id = $entityId AND card_pile = 'destroyed' 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'inactive' 
              ORDER BY RAND() LIMIT 1"
         );
 
@@ -192,11 +207,12 @@ class Deck
     }
 
     /**
-     * Destroy a random card - tries active pile first, then discard pile
+     * Damage a card - moves it to inactive pile
+     * Tries active pile first, then discard pile
      * Excludes cards that are currently drawn (in a sequence)
-     * @param int $entityId The entity to destroy a card from
+     * @param int $entityId The entity to damage a card from
      * @param array $excludeCardIds Card IDs to exclude (e.g., currently drawn cards)
-     * @return array|null The destroyed card with 'from_pile' key, or null if no cards
+     * @return array|null The damaged card with 'from_pile' key, or null if no cards
      */
     public function destroyOneCard(int $entityId, array $excludeCardIds = []): ?array
     {
@@ -206,9 +222,9 @@ class Deck
             $excludeClause = " AND card_id NOT IN ($ids)";
         }
 
-        // Try active pile first
+        // Try active pile first (excluding drawn card)
         $card = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type FROM card 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
              WHERE entity_id = $entityId AND card_pile = 'active' $excludeClause
              ORDER BY RAND() LIMIT 1"
         );
@@ -221,7 +237,7 @@ class Deck
 
         // Try discard pile
         $card = $this->game->getObjectFromDB(
-            "SELECT card_id, card_type FROM card 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
              WHERE entity_id = $entityId AND card_pile = 'discard' $excludeClause
              ORDER BY RAND() LIMIT 1"
         );
@@ -232,12 +248,29 @@ class Deck
             return $card;
         }
 
+        // Last resort: destroy the drawn card itself if it's the only option
+        // This prevents infinite combat when both sides only have their drawn card
+        if (!empty($excludeCardIds)) {
+            $card = $this->game->getObjectFromDB(
+                "SELECT card_id, card_name, card_type, card_power FROM card 
+                 WHERE entity_id = $entityId AND card_pile = 'active'
+                 ORDER BY RAND() LIMIT 1"
+            );
+
+            if ($card) {
+                $this->destroy((int)$card['card_id']);
+                $card['from_pile'] = 'active';
+                $card['was_drawn'] = true; // Flag that this was the drawn card
+                return $card;
+            }
+        }
+
         return null;
     }
 
     /**
      * Get pile counts for an entity
-     * @return array ['active' => int, 'discard' => int, 'destroyed' => int, 'inactive' => int]
+     * @return array ['active' => int, 'discard' => int, 'inactive' => int]
      */
     public function getPileCounts(int $entityId): array
     {
@@ -246,7 +279,7 @@ class Deck
              WHERE entity_id = $entityId GROUP BY card_pile"
         );
 
-        $counts = ['active' => 0, 'discard' => 0, 'destroyed' => 0, 'inactive' => 0];
+        $counts = ['active' => 0, 'discard' => 0, 'inactive' => 0];
         foreach ($result as $row) {
             $counts[$row['card_pile']] = (int)$row['count'];
         }
@@ -255,7 +288,7 @@ class Deck
     }
 
     /**
-     * Check if entity is defeated (all cards destroyed)
+     * Check if entity is defeated (active + discard = 0)
      */
     public function isDefeated(int $entityId): bool
     {
@@ -311,11 +344,11 @@ class Deck
     public function getAllCards(int $entityId): array
     {
         $cards = $this->game->getObjectListFromDB(
-            "SELECT card_id, card_type, card_pile, card_order FROM card 
+            "SELECT card_id, card_name, card_type, card_power, card_pile, card_order FROM card 
              WHERE entity_id = $entityId ORDER BY card_pile, card_order"
         );
 
-        $result = ['active' => [], 'discard' => [], 'destroyed' => [], 'inactive' => []];
+        $result = ['active' => [], 'discard' => [], 'inactive' => []];
         foreach ($cards as $card) {
             $result[$card['card_pile']][] = $card;
         }
@@ -325,12 +358,12 @@ class Deck
 
     /**
      * Get inactive cards for an entity, ordered by card_order
-     * @return array List of cards with id and type
+     * @return array List of cards with id, name, type, power
      */
     public function getInactiveCards(int $entityId): array
     {
         return $this->game->getObjectListFromDB(
-            "SELECT card_id, card_type FROM card 
+            "SELECT card_id, card_name, card_type, card_power FROM card 
              WHERE entity_id = $entityId AND card_pile = 'inactive' 
              ORDER BY card_order ASC"
         );
@@ -391,11 +424,21 @@ class Deck
     /**
      * Add a new card to entity's inactive pile (for item consumption)
      * @param int $entityId The entity to receive the card
-     * @param string $cardType The type of card to add
+     * @param string|array $card Card type string or array with name, type, power
      * @return int The new card's ID
      */
-    public function addCardToInactive(int $entityId, string $cardType): int
+    public function addCardToInactive(int $entityId, $card): int
     {
+        if (is_string($card)) {
+            $cardType = addslashes($card);
+            $cardName = ucfirst($card);
+            $cardPower = 1;
+        } else {
+            $cardType = addslashes($card['type'] ?? 'attack');
+            $cardName = addslashes($card['name'] ?? ucfirst($cardType));
+            $cardPower = (int)($card['power'] ?? 1);
+        }
+        
         // Get max order in inactive pile
         $maxOrder = (int)$this->game->getUniqueValueFromDB(
             "SELECT COALESCE(MAX(card_order), -1) FROM card 
@@ -403,11 +446,124 @@ class Deck
         );
         
         $this->game->DbQuery(
-            "INSERT INTO card (entity_id, card_type, card_pile, card_order) 
-             VALUES ($entityId, '$cardType', 'inactive', " . ($maxOrder + 1) . ")"
+            "INSERT INTO card (entity_id, card_name, card_type, card_power, card_pile, card_order) 
+             VALUES ($entityId, '$cardName', '$cardType', $cardPower, 'inactive', " . ($maxOrder + 1) . ")"
         );
         
         return (int)$this->game->getUniqueValueFromDB("SELECT LAST_INSERT_ID()");
+    }
+
+    /**
+     * Shuffle N cards from discard to active (for shuffle card effect)
+     * @param int $entityId The entity
+     * @param int $count Number of cards to shuffle
+     * @return array Cards that were shuffled
+     */
+    public function shuffleFromDiscard(int $entityId, int $count): array
+    {
+        $cards = $this->game->getObjectListFromDB(
+            "SELECT card_id, card_name, card_type, card_power FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'discard' 
+             ORDER BY RAND() LIMIT $count"
+        );
+
+        if (empty($cards)) {
+            return [];
+        }
+
+        // Get current max order in active pile
+        $maxActiveOrder = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COALESCE(MAX(card_order), -1) FROM card 
+             WHERE entity_id = $entityId AND card_pile = 'active'"
+        );
+
+        // Move cards to active and shuffle their positions
+        $cardIds = array_column($cards, 'card_id');
+        foreach ($cardIds as $index => $cardId) {
+            $newOrder = $maxActiveOrder + 1 + $index;
+            $this->game->DbQuery(
+                "UPDATE card SET card_pile = 'active', card_order = $newOrder 
+                 WHERE card_id = $cardId"
+            );
+        }
+
+        // Shuffle the active deck
+        $this->shuffleActive($entityId);
+
+        return $cards;
+    }
+
+    /**
+     * Permanently delete a card (for level up cost)
+     * @param int $cardId The card to permanently remove
+     */
+    public function permanentlyDelete(int $cardId): void
+    {
+        $this->game->DbQuery("DELETE FROM card WHERE card_id = $cardId");
+    }
+
+    /**
+     * Permanently delete multiple cards (for level up cost)
+     * @param array $cardIds Array of card IDs to permanently remove
+     * @return int Number of cards deleted
+     */
+    public function permanentlyDeleteCards(array $cardIds): int
+    {
+        if (empty($cardIds)) {
+            return 0;
+        }
+        
+        $ids = implode(',', array_map('intval', $cardIds));
+        $this->game->DbQuery("DELETE FROM card WHERE card_id IN ($ids)");
+        
+        return count($cardIds);
+    }
+
+    /**
+     * Apply deck changes from Plan action
+     * Moves cards between active and inactive based on provided arrays
+     * @param int $entityId The entity
+     * @param array $activeCardIds Cards that should be in active pile (in order)
+     * @param array $inactiveCardIds Cards that should be in inactive pile
+     * @param int $maxActive Maximum cards allowed in active (entity level)
+     */
+    public function applyPlanChanges(int $entityId, array $activeCardIds, array $inactiveCardIds, int $maxActive): void
+    {
+        // Validate we don't exceed max active
+        if (count($activeCardIds) > $maxActive) {
+            throw new \BgaUserException(sprintf(
+                clienttranslate("Active deck can only hold %d cards (your level)"),
+                $maxActive
+            ));
+        }
+
+        // Move all specified cards to their new piles
+        foreach ($activeCardIds as $order => $cardId) {
+            $cardId = (int)$cardId;
+            $this->game->DbQuery(
+                "UPDATE card SET card_pile = 'active', card_order = $order 
+                 WHERE card_id = $cardId AND entity_id = $entityId"
+            );
+        }
+
+        foreach ($inactiveCardIds as $order => $cardId) {
+            $cardId = (int)$cardId;
+            $this->game->DbQuery(
+                "UPDATE card SET card_pile = 'inactive', card_order = $order 
+                 WHERE card_id = $cardId AND entity_id = $entityId"
+            );
+        }
+    }
+
+    /**
+     * Get card info by ID (with entity validation)
+     */
+    public function getCard(int $cardId, int $entityId): ?array
+    {
+        return $this->game->getObjectFromDB(
+            "SELECT card_id, card_name, card_type, card_power, card_pile FROM card 
+             WHERE card_id = $cardId AND entity_id = $entityId"
+        );
     }
 }
 

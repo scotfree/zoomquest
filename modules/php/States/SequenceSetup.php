@@ -50,33 +50,29 @@ class SequenceSetup extends GameState
         $sequenceId = $sequenceResolver->createSequence($locationId);
         $stateHelper->set(STATE_CURRENT_SEQUENCE, (string)$sequenceId);
 
-        // Initialize sequence round counter
+        // Initialize sequence round counter and log
         $stateHelper->set(STATE_SEQUENCE_ROUND, '0');
         $stateHelper->set(STATE_ROUND_RESOLUTIONS, json_encode([]));
+        $stateHelper->set(STATE_SEQUENCE_LOG, json_encode([]));
 
         // Get location name and participants
         $locationName = $this->game->getUniqueValueFromDB(
             "SELECT location_name FROM location WHERE location_id = '" . addslashes($locationId) . "'"
         );
 
-        $participants = $sequenceResolver->getEntitiesAtLocation($locationId);
+        // Get all entities at location for display (includes planning players)
+        $allEntities = $sequenceResolver->getEntitiesAtLocation($locationId);
+        
+        // Get actual participants (those who will draw/play cards - excludes planning players)
+        $participants = $this->game->getObjectListFromDB(
+            "SELECT sp.entity_id, e.entity_name, e.entity_type, e.faction
+             FROM sequence_participant sp
+             JOIN entity e ON sp.entity_id = e.entity_id
+             WHERE sp.sequence_id = $sequenceId"
+        );
 
-        // Check if there are any hostile pairs - if not, skip sequence
-        $hasHostiles = false;
-        foreach ($participants as $p1) {
-            foreach ($participants as $p2) {
-                if ($p1['entity_id'] !== $p2['entity_id']) {
-                    $rel = $sequenceResolver->getRelationship($p1['faction'], $p2['faction']);
-                    if ($rel === RELATION_HOSTILE) {
-                        $hasHostiles = true;
-                        break 2;
-                    }
-                }
-            }
-        }
-
-        if (!$hasHostiles) {
-            // No hostiles here, skip this location
+        // If no one is participating (all planning or no entities), skip
+        if (empty($participants)) {
             return SequenceSetup::class; // Try next location
         }
 

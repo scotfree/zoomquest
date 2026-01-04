@@ -27,18 +27,32 @@ const CARD_WATCH = 'watch';
 const CARD_SHUFFLE = 'shuffle';
 const CARD_POISON = 'poison';
 const CARD_MARK = 'mark';
-const CARD_BACKSTAB = 'backstab';
-const CARD_EXECUTE = 'execute';
 const CARD_SELL = 'sell';
 const CARD_STEAL = 'steal';
 const CARD_WEALTH = 'wealth';
 
 /*
+ * Marker types (for the new marker-based combat system)
+ */
+const MARKER_ATTACK = 'attack';
+const MARKER_DEFEND = 'defend';
+const MARKER_SNEAK = 'sneak';
+const MARKER_WATCH = 'watch';
+const MARKER_POISON = 'poison';
+const MARKER_HEAL = 'heal';
+const MARKER_MARK = 'mark';
+const MARKER_SELL = 'sell';
+const MARKER_WEALTH = 'wealth';
+const MARKER_STEAL = 'steal';
+
+/*
  * Card piles
+ * - active: cards available to draw in action sequences (limited by entity_level)
+ * - discard: cards played this sequence (shuffled back to active at end)
+ * - inactive: stored cards (damaged cards go here, new acquisitions go here)
  */
 const PILE_ACTIVE = 'active';
 const PILE_DISCARD = 'discard';
-const PILE_DESTROYED = 'destroyed';
 const PILE_INACTIVE = 'inactive';
 
 /*
@@ -62,7 +76,8 @@ const RELATION_NEUTRAL = 'neutral';
 const RELATION_FRIENDLY = 'friendly';
 
 /*
- * Entity tags (temporary status effects)
+ * Entity tags (legacy - being replaced by marker system)
+ * Keeping for backward compatibility during transition
  */
 const TAG_HIDDEN = 'hidden';
 const TAG_BLOCKED = 'blocked';
@@ -78,6 +93,7 @@ const STATE_CURRENT_SEQUENCE = 'current_sequence';
 const STATE_SEQUENCES_TO_RESOLVE = 'sequences_to_resolve';
 const STATE_SEQUENCE_ROUND = 'sequence_round';
 const STATE_ROUND_RESOLUTIONS = 'round_resolutions';
+const STATE_SEQUENCE_LOG = 'sequence_log'; // Accumulated log entries for the entire sequence
 const STATE_FACTION_MATRIX = 'faction_matrix';
 const STATE_VICTORY_CONDITION = 'victory_condition';
 

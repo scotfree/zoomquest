@@ -73,8 +73,17 @@ class MoveSelection extends GameState
                 }
             }
 
-            // Get active cards for Plan popup (shown when staying)
-            $activeCards = $this->game->getDeck()->getActiveCards((int)$entity['entity_id']);
+            // Get active and inactive cards for Plan popup (shown when staying)
+            $entityId = (int)$entity['entity_id'];
+            $deck = $this->game->getDeck();
+            $activeCards = $deck->getActiveCards($entityId);
+            $inactiveCards = $deck->getInactiveCards($entityId);
+            
+            // Get entity level (capacity of active deck)
+            $entityLevel = (int)($entity['entity_level'] ?? 5);
+            
+            // Check if level up is possible (inactive >= level)
+            $canLevelUp = count($inactiveCards) >= $entityLevel;
 
             // Get current move choice if any
             $currentChoice = $this->game->getMoveChoice($pid);
@@ -85,6 +94,9 @@ class MoveSelection extends GameState
                 'adjacentLocations' => $adjacentLocations,
                 'hasHostilesHere' => $hasHostiles,
                 'activeCards' => $activeCards,
+                'inactiveCards' => $inactiveCards,
+                'entityLevel' => $entityLevel,
+                'canLevelUp' => $canLevelUp,
                 'currentChoice' => $currentChoice,
             ];
         }
@@ -113,6 +125,7 @@ class MoveSelection extends GameState
         $currentLocationId = $entity['location_id'];
         $isStaying = ($locationId === $currentLocationId);
         $deck = $this->game->getDeck();
+        $entityLevel = (int)($entity['entity_level'] ?? 5);
 
         // If moving, validate target is adjacent
         if (!$isStaying) {
@@ -124,21 +137,29 @@ class MoveSelection extends GameState
             }
         }
 
-        // Handle plan action (staying with deck reorder)
+        // Handle plan action (staying with deck management)
         if ($isPlan && $cardOrder) {
-            $cardOrderArray = json_decode($cardOrder, true);
-            if (is_array($cardOrderArray) && !empty($cardOrderArray)) {
-                // Reorder the active cards
-                $deck->reorderActive($entityId, $cardOrderArray);
-                
-                // Move all active cards to discard (penalty for planning)
-                $deck->moveActiveToDiscard($entityId);
+            $cardData = json_decode($cardOrder, true);
+            
+            if (is_array($cardData)) {
+                // New format: { activeCards: [...], inactiveCards: [...] }
+                if (isset($cardData['activeCards']) && isset($cardData['inactiveCards'])) {
+                    $activeCardIds = array_map('intval', $cardData['activeCards']);
+                    $inactiveCardIds = array_map('intval', $cardData['inactiveCards']);
+                    
+                    // Apply the plan changes (validates active deck capacity)
+                    $deck->applyPlanChanges($entityId, $activeCardIds, $inactiveCardIds, $entityLevel);
+                }
+                // Legacy format: just an array of card IDs for active reorder
+                elseif (!empty($cardData) && is_numeric($cardData[0] ?? null)) {
+                    $deck->reorderActive($entityId, $cardData);
+                }
             }
         }
 
-        // Record the choice
+        // Record the choice - isPlan means player won't participate in action sequences
         $targetLocation = $isStaying ? null : $locationId;
-        $this->game->recordMoveChoice($playerId, $targetLocation, $cardOrder);
+        $this->game->recordMoveChoice($playerId, $targetLocation, $cardOrder, $isPlan);
 
         // Notify
         $actionText = $isPlan ? 'plans their deck' : ($isStaying ? 'stays' : 'will move');
@@ -154,6 +175,65 @@ class MoveSelection extends GameState
         // Deactivate player
         $this->game->gamestate->setPlayerNonMultiactive($playerId, 'resolve');
 
+        return null;
+    }
+
+    /**
+     * Player action: Level up (delete cards to increase level)
+     */
+    #[PossibleAction]
+    function actLevelUp(string $cardIdsJson, int $activePlayerId, array $args)
+    {
+        $playerId = (int)$this->game->getCurrentPlayerId();
+        
+        // Get player's entity
+        $entity = $this->game->getGameStateHelper()->getEntityByPlayerId($playerId);
+        if (!$entity) {
+            throw new \BgaUserException(clienttranslate("No entity found for player"));
+        }
+
+        $entityId = (int)$entity['entity_id'];
+        $entityLevel = (int)($entity['entity_level'] ?? 5);
+        $deck = $this->game->getDeck();
+        
+        // Parse card IDs to delete
+        $cardIds = json_decode($cardIdsJson, true);
+        if (!is_array($cardIds) || count($cardIds) !== $entityLevel) {
+            throw new \BgaUserException(sprintf(
+                clienttranslate("Must select exactly %d cards to sacrifice for level up"),
+                $entityLevel
+            ));
+        }
+
+        // Validate all cards belong to this entity
+        foreach ($cardIds as $cardId) {
+            $card = $deck->getCard((int)$cardId, $entityId);
+            if (!$card) {
+                throw new \BgaUserException(clienttranslate("Invalid card selection"));
+            }
+        }
+
+        // Delete the cards permanently
+        $deck->permanentlyDeleteCards(array_map('intval', $cardIds));
+
+        // Increase entity level
+        $newLevel = $entityLevel + 1;
+        $this->game->DbQuery(
+            "UPDATE entity SET entity_level = $newLevel WHERE entity_id = $entityId"
+        );
+
+        // Notify
+        $this->notify->all('entityLeveledUp', clienttranslate('${player_name} sacrifices ${count} cards to reach level ${level}!'), [
+            'player_id' => $playerId,
+            'player_name' => $this->game->getPlayerNameById($playerId),
+            'entity_id' => $entityId,
+            'entity_name' => $entity['entity_name'],
+            'count' => $entityLevel,
+            'level' => $newLevel,
+            'old_level' => $entityLevel,
+        ]);
+
+        // Don't deactivate - player can still choose to move or stay
         return null;
     }
 

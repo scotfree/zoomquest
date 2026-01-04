@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `entity` (
   `entity_class` varchar(32) NOT NULL,
   `faction` varchar(32) NOT NULL DEFAULT 'neutral',
   `location_id` varchar(32) NOT NULL,
+  `entity_level` int(10) unsigned NOT NULL DEFAULT 5,
   `is_defeated` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`entity_id`),
   KEY (`player_id`),
@@ -60,13 +61,24 @@ CREATE TABLE IF NOT EXISTS `entity_tag` (
 CREATE TABLE IF NOT EXISTS `card` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `entity_id` int(10) unsigned NOT NULL,
-  `card_type` enum('attack','defend','heal','sneak','watch','shuffle','poison','mark','backstab','execute','sell','steal','wealth') NOT NULL,
-  `card_pile` enum('active','discard','destroyed','inactive') NOT NULL DEFAULT 'active',
+  `card_name` varchar(64) NOT NULL DEFAULT '',
+  `card_type` enum('attack','defend','heal','sneak','watch','shuffle','poison','mark','sell','steal','wealth') NOT NULL,
+  `card_power` int(10) unsigned NOT NULL DEFAULT 1,
+  `card_pile` enum('active','discard','inactive') NOT NULL DEFAULT 'active',
   `card_order` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`card_id`),
   KEY (`entity_id`),
   KEY (`card_pile`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+
+-- Markers (temporary effects during action sequences)
+CREATE TABLE IF NOT EXISTS `entity_marker` (
+  `entity_id` int(10) unsigned NOT NULL,
+  `marker_type` enum('attack','defend','sneak','watch','poison','heal','mark','sell','wealth','steal') NOT NULL,
+  `marker_count` int(10) unsigned NOT NULL DEFAULT 0,
+  `source_entity_id` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`entity_id`, `marker_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Items (belong to entities, consumed on acquisition)
 CREATE TABLE IF NOT EXISTS `item` (
@@ -84,6 +96,7 @@ CREATE TABLE IF NOT EXISTS `move_choice` (
   `player_id` int(10) unsigned NOT NULL,
   `target_location` varchar(32) DEFAULT NULL,
   `card_order` text DEFAULT NULL,
+  `is_planning` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -142,4 +155,17 @@ CREATE TABLE IF NOT EXISTS `player_visited` (
   `location_id` varchar(32) NOT NULL,
   PRIMARY KEY (`player_id`, `location_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Per-location event log (action sequence summaries)
+CREATE TABLE IF NOT EXISTS `location_log` (
+  `log_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `location_id` varchar(32) NOT NULL,
+  `round` int(10) unsigned NOT NULL,
+  `log_type` varchar(32) NOT NULL DEFAULT 'sequence',
+  `log_data` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`),
+  KEY (`location_id`),
+  KEY (`round`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

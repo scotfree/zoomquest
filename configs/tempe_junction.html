@@ -323,7 +323,7 @@
                 <div class="scenario-victory">🎯 Clear all monsters from Tempe Junction!</div>
                 <div class="scenario-stats">
                     📍 18 locations | 🔗 23 paths<br>
-                    ⚔️ 5 heroes | 🧟 6 monster types
+                    ⚔️ 5 heroes | 🧟 7 monster types
                 </div>
             </div>
             <div class="info-content" id="info-content">
@@ -783,7 +783,7 @@
       "name": "Marcus",
       "class": "warrior",
       "faction": "players",
-      "location": "town_square",
+      "location": "stables",
       "decks": {
         "active": [
           "attack",
@@ -798,7 +798,7 @@
       "name": "Elena",
       "class": "cleric",
       "faction": "players",
-      "location": "chapel",
+      "location": "stables",
       "decks": {
         "active": [
           "defend",
@@ -813,7 +813,7 @@
       "name": "Finn",
       "class": "ranger",
       "faction": "players",
-      "location": "west_woods",
+      "location": "stables",
       "decks": {
         "active": [
           "attack",
@@ -828,7 +828,7 @@
       "name": "Sera",
       "class": "paladin",
       "faction": "players",
-      "location": "town_square",
+      "location": "stables",
       "decks": {
         "active": [
           "attack",
@@ -843,7 +843,7 @@
       "name": "Kira",
       "class": "rogue",
       "faction": "players",
-      "location": "market",
+      "location": "stables",
       "decks": {
         "active": [
           "sneak",
@@ -957,7 +957,9 @@
           "name": "Fine Blade",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "card_type": "attack",
+            "name": "Fine Blade",
+            "power": 2
           }
         }
       ]
@@ -974,7 +976,36 @@
           "defend"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "name": "Fine Blade",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bandit",
+      "class": "bandit",
+      "faction": "bandits",
+      "location": "farm",
+      "decks": {
+        "active": [
+          "attack",
+          "defend"
+        ]
+      },
+      "items": [
+        {
+          "name": "Dagger",
+          "type": "new_action",
+          "data": {
+            "card_type": "attack"
+          }
+        }
+      ]
     }
   ]
 };

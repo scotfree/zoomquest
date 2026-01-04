@@ -41,13 +41,9 @@ class SequenceRoundEnd extends GameState
         $resolutionsJson = $stateHelper->get(STATE_ROUND_RESOLUTIONS);
         $resolutions = $resolutionsJson ? json_decode($resolutionsJson, true) : [];
 
-        // Apply poison damage at end of round
-        $poisonResults = $sequenceResolver->applyPoisonTicks($sequenceId);
-        foreach ($poisonResults as $pr) {
-            $resolutions[] = $pr;
-        }
+        // Note: Poison damage now happens at end of action sequence, not each round
 
-        // Get participant status (after poison damage)
+        // Get participant status
         $status = $sequenceResolver->getParticipantStatus($sequenceId);
 
         // Build readable log message
@@ -56,6 +52,16 @@ class SequenceRoundEnd extends GameState
             $logParts[] = $this->formatResolution($r);
         }
         $roundLog = implode(' ', $logParts);
+
+        // Append this round's log to the accumulated sequence log
+        $sequenceLogJson = $stateHelper->get(STATE_SEQUENCE_LOG);
+        $sequenceLog = $sequenceLogJson ? json_decode($sequenceLogJson, true) : [];
+        $sequenceLog[] = [
+            'round' => $sequenceRound,
+            'log' => $roundLog,
+            'resolutions' => $resolutions,
+        ];
+        $stateHelper->set(STATE_SEQUENCE_LOG, json_encode($sequenceLog));
 
         // Send round summary notification
         $this->notify->all('sequenceRoundSummary', clienttranslate('Round ${round}: ${round_log}'), [
@@ -125,7 +131,7 @@ class SequenceRoundEnd extends GameState
             } else {
                 $a = $s['active'] ?? 0;
                 $d = $s['discard'] ?? 0;
-                $x = $s['destroyed'] ?? 0;
+                $x = $s['inactive'] ?? 0;
                 $parts[] = "$name $a/$d/$x";
             }
         }
@@ -141,90 +147,90 @@ class SequenceRoundEnd extends GameState
         $target = $r['target_name'] ?? null;
         $effect = $r['effect'] ?? 'none';
         $cardType = $r['card_type'] ?? 'unknown';
+        $cardName = $r['card_name'] ?? ucfirst($cardType);
+        $power = $r['card_power'] ?? 1;
 
-        switch ($cardType) {
-            case 'attack':
-                if ($effect === 'destroy') {
-                    return "$entity attacked $target, destroying a card.";
-                } elseif ($effect === 'blocked') {
-                    return "$entity attacked $target but was blocked.";
-                } elseif ($effect === 'target_hidden') {
-                    return "$entity attacked but $target was hidden.";
-                }
-                return "$entity's attack had no effect.";
+        switch ($effect) {
+            case 'watch':
+                $markers = $r['markers_placed'] ?? 1;
+                return "$entity played $cardName (+$markers watch).";
 
-            case 'defend':
-                if ($effect === 'block') {
-                    return "$entity defended $target (+1 block).";
-                }
-                return "$entity's defense had no effect.";
-
-            case 'heal':
-                if ($effect === 'heal') {
-                    return "$entity healed $target, recovering a card.";
-                }
-                return "$entity tried to heal but couldn't.";
+            case 'watch_cancels_sneak':
+                $cancelled = $r['cancelled'] ?? 1;
+                return "Watch cancelled $cancelled sneak marker(s).";
 
             case 'sneak':
-                if ($effect === 'hidden') {
-                    return "$entity snuck into the shadows.";
-                }
-                return "$entity tried to sneak but was spotted.";
-
-            case 'watch':
-                return "$entity watched for enemies.";
-
-            case 'shuffle':
-                return "$entity shuffled their deck.";
-
-            case 'poison':
-                if ($effect === 'poison') {
-                    $duration = $r['duration'] ?? 3;
-                    return "$entity poisoned $target ($duration rounds).";
-                }
-                return "$entity's poison had no effect.";
+                $markers = $r['markers_placed'] ?? 1;
+                return "$entity played $cardName (+$markers sneak, hidden).";
 
             case 'mark':
-                if ($effect === 'mark') {
-                    $duration = $r['duration'] ?? 2;
-                    return "$entity marked $target ($duration rounds, +1 damage).";
-                }
-                return "$entity's mark had no effect.";
+                $markers = $r['markers_placed'] ?? 1;
+                return "$entity played $cardName, marking $target (+$markers attack bonus).";
 
-            case 'backstab':
-                if ($effect === 'backstab') {
-                    $damage = $r['damage'] ?? 3;
-                    $bonus = isset($r['marked_bonus']) ? ' (+1 marked)' : '';
-                    return "$entity backstabbed $target for $damage damage$bonus!";
-                } elseif ($effect === 'not_hidden') {
-                    return "$entity tried to backstab but wasn't hidden.";
-                } elseif ($effect === 'blocked') {
-                    return "$entity's backstab was blocked.";
-                }
-                return "$entity's backstab missed.";
+            case 'attack':
+                $total = $r['total_attack'] ?? $power;
+                $sneakBonus = $r['sneak_bonus'] ?? 0;
+                $markBonus = $r['mark_bonus'] ?? 0;
+                $bonusStr = '';
+                if ($sneakBonus > 0) $bonusStr .= " +$sneakBonus sneak";
+                if ($markBonus > 0) $bonusStr .= " +$markBonus mark";
+                return "$entity attacked $target with $cardName ($total damage$bonusStr).";
 
-            case 'execute':
-                if ($effect === 'execute') {
-                    $damage = $r['damage'] ?? 3;
-                    $bonus = isset($r['marked_bonus']) ? ' (+1 marked)' : '';
-                    return "$entity executed $target for $damage damage$bonus!";
-                } elseif ($effect === 'not_poisoned') {
-                    return "$entity tried to execute but $target wasn't poisoned.";
-                } elseif ($effect === 'blocked') {
-                    return "$entity's execute was blocked.";
-                }
-                return "$entity's execute missed.";
+            case 'defend':
+                $total = $r['total_defend'] ?? $power;
+                $sneakBonus = $r['sneak_bonus'] ?? 0;
+                $bonusStr = $sneakBonus > 0 ? " +$sneakBonus sneak" : '';
+                return "$entity defended $target with $cardName (+$total block$bonusStr).";
+
+            case 'combat_resolution':
+                $damage = $r['damage'] ?? 0;
+                $cancelled = $r['cancelled'] ?? 0;
+                $defendRemaining = $r['defend_remaining'] ?? 0;
+                $parts = [];
+                if ($cancelled > 0) $parts[] = "$cancelled blocked";
+                if ($damage > 0) $parts[] = "$damage damage";
+                if ($defendRemaining > 0) $parts[] = "$defendRemaining block remaining";
+                if (isset($r['defeated'])) $parts[] = "defeated!";
+                return "$entity: " . implode(', ', $parts) . ".";
+
+            case 'poison':
+                $markers = $r['markers_placed'] ?? 1;
+                return "$entity poisoned $target with $cardName (+$markers poison).";
+
+            case 'heal':
+                $poisonRemoved = $r['poison_removed'] ?? 0;
+                $cardsRestored = count($r['cards_restored'] ?? []);
+                $parts = [];
+                if ($poisonRemoved > 0) $parts[] = "removed $poisonRemoved poison";
+                if ($cardsRestored > 0) $parts[] = "restored $cardsRestored card(s)";
+                if (empty($parts)) return "$entity played $cardName but nothing to heal.";
+                return "$entity played $cardName: " . implode(', ', $parts) . ".";
+
+            case 'shuffle':
+                $count = count($r['cards_shuffled'] ?? []);
+                return "$entity played $cardName, shuffling $count card(s) from discard.";
+
+            case 'selling':
+                $price = $r['minimum_price'] ?? 1;
+                return "$entity is selling (minimum $price wealth).";
+
+            case 'purchased':
+                $itemName = $r['item']['item_name'] ?? 'item';
+                return "$entity purchased $itemName from $target.";
+
+            case 'stolen':
+                $itemCount = count($r['items'] ?? []);
+                return "$entity stole $itemCount item(s) from $target.";
+
+            case 'caught':
+                return "$entity tried to steal but was caught!";
+
+            case 'no_target':
+            case 'target_defeated':
+                return "$entity played $cardName but had no valid target.";
 
             default:
-                // Handle poison tick (effect-based, not card-based)
-                if ($effect === 'poison_tick') {
-                    $rounds = $r['rounds_remaining'] ?? 0;
-                    if (isset($r['defeated'])) {
-                        return "$entity took poison damage and was defeated!";
-                    }
-                    return "$entity took poison damage ($rounds rounds left).";
-                }
-                return "$entity played $cardType.";
+                return "$entity played $cardName.";
         }
     }
 }

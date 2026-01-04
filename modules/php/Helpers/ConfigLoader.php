@@ -117,11 +117,24 @@ class ConfigLoader
             throw new \BgaUserException("$type must have 'decks.active' array");
         }
 
-        // Validate card types
-        $validCards = ['attack', 'defend', 'heal', 'sneak', 'watch', 'shuffle', 'poison', 'mark', 'backstab', 'execute', 'sell', 'steal', 'wealth'];
+        // Validate card entries (can be string type or object with name/type/power)
+        $validCards = ['attack', 'defend', 'heal', 'sneak', 'watch', 'shuffle', 'poison', 'mark', 'sell', 'steal', 'wealth'];
         foreach ($entity['decks']['active'] as $card) {
-            if (!in_array($card, $validCards)) {
-                throw new \BgaUserException("Invalid card type: $card");
+            if (is_string($card)) {
+                // Old format: just the type
+                if (!in_array($card, $validCards)) {
+                    throw new \BgaUserException("Invalid card type: $card");
+                }
+            } elseif (is_array($card)) {
+                // New format: {name, type, power}
+                if (!isset($card['type'])) {
+                    throw new \BgaUserException("Card object must have 'type'");
+                }
+                if (!in_array($card['type'], $validCards)) {
+                    throw new \BgaUserException("Invalid card type: {$card['type']}");
+                }
+            } else {
+                throw new \BgaUserException("Invalid card format");
             }
         }
 
