@@ -2,6 +2,8 @@
   "level_name": "tempe_junction",
   "round": 0,
   "background_image": "img/tempe_junction.png",
+  "entity_visibility": 2,
+  "location_visibility": 3,
   "victory": {
     "type": "defeat_all",
     "description": "Clear all monsters from Tempe Junction!"
@@ -334,6 +336,12 @@
         "bidirectional": true
       },
       {
+        "name": "Aardvark Track",
+        "from": "town_square",
+        "to": "mountain_pass",
+        "bidirectional": true
+      },
+      {
         "name": "Market Road",
         "from": "town_square",
         "to": "market",
@@ -442,6 +450,12 @@
         "bidirectional": true
       },
       {
+        "name": "Dirty Row",
+        "from": "stables",
+        "to": "mountain_pass",
+        "bidirectional": true
+      },
+      {
         "name": "Ruined Path",
         "from": "ruins",
         "to": "abandoned_mine",
@@ -455,6 +469,7 @@
       "class": "warrior",
       "faction": "players",
       "location": "stables",
+      "level": 3,
       "decks": {
         "active": [
           {
@@ -471,7 +486,9 @@
             "name": "Round Shield",
             "type": "defend",
             "power": 1
-          },
+          }
+        ],
+        "inactive": [
           {
             "name": "Throwing Knife",
             "type": "attack",
@@ -490,6 +507,7 @@
       "class": "cleric",
       "faction": "players",
       "location": "stables",
+      "level": 3,
       "decks": {
         "active": [
           {
@@ -506,7 +524,9 @@
             "name": "Salve",
             "type": "heal",
             "power": 1
-          },
+          }
+        ],
+        "inactive": [
           {
             "name": "Blessed Shield",
             "type": "defend",
@@ -541,7 +561,9 @@
             "name": "Dodge",
             "type": "defend",
             "power": 1
-          },
+          }
+        ],
+        "inactive": [
           {
             "name": "Camouflage",
             "type": "sneak",
@@ -576,7 +598,9 @@
             "name": "Lay on Hands",
             "type": "heal",
             "power": 1
-          },
+          }
+        ],
+        "inactive": [
           {
             "name": "Buckler",
             "type": "defend",
@@ -595,6 +619,7 @@
       "class": "rogue",
       "faction": "players",
       "location": "stables",
+      "level": 3,
       "decks": {
         "active": [
           {
@@ -611,7 +636,9 @@
             "name": "Throwing Dagger",
             "type": "attack",
             "power": 1
-          },
+          }
+        ],
+        "inactive": [
           {
             "name": "Parry",
             "type": "defend",
@@ -624,6 +651,33 @@
           }
         ]
       }
+    },
+    {
+      "name": "Stable Hand",
+      "class": "merchant",
+      "faction": "friendly",
+      "location": "stables",
+      "level": 1,
+      "decks": {
+        "active": [
+          {
+            "name": "Sell",
+            "type": "sell",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Rad Sword",
+          "type": "new_action",
+          "data": {
+            "name": "Rad Sword",
+            "type": "attack",
+            "power": 2
+          }
+        }
+      ]
     }
   ],
   "monsters": [
@@ -631,22 +685,23 @@
       "name": "Goblin Scout",
       "class": "goblin",
       "faction": "goblins",
-      "location": "caves",
+      "location": "mountain_pass",
+      "level": 3,
       "decks": {
         "active": [
           {
-            "name": "Rusty Knife",
+            "name": "Rusty Axe",
             "type": "attack",
             "power": 1
           },
           {
-            "name": "Skulk",
+            "name": "Rusty Axe",
             "type": "sneak",
             "power": 1
           },
           {
-            "name": "Scratch",
-            "type": "attack",
+            "name": "Big Helmet",
+            "type": "defend",
             "power": 1
           }
         ]
@@ -664,10 +719,48 @@
       ]
     },
     {
+      "name": "Goblin Bruiser",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "forest",
+      "level": 3,
+      "decks": {
+        "active": [
+          {
+            "name": "Rusty Axe ",
+            "type": "attack",
+            "power": 2
+          },
+          {
+            "name": "Big Helmet",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Rusty Axe",
+            "type": "attack",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Axe",
+          "type": "new_action",
+          "data": {
+            "name": "Axe Swing",
+            "type": "attack",
+            "power": 2
+          }
+        }
+      ]
+    },
+    {
       "name": "Goblin Shaman",
       "class": "goblin",
       "faction": "goblins",
       "location": "abandoned_mine",
+      "level": 4,
       "decks": {
         "active": [
           {
@@ -709,6 +802,7 @@
       "class": "undead",
       "faction": "undead",
       "location": "graveyard",
+      "level": 4,
       "decks": {
         "active": [
           {
@@ -750,6 +844,7 @@
       "class": "undead",
       "faction": "undead",
       "location": "graveyard",
+      "level": 3,
       "decks": {
         "active": [
           {
@@ -776,6 +871,7 @@
       "class": "bandit",
       "faction": "bandits",
       "location": "watchtower",
+      "level": 5,
       "decks": {
         "active": [
           {
@@ -822,6 +918,7 @@
       "class": "bandit",
       "faction": "bandits",
       "location": "farm",
+      "level": 5,
       "decks": {
         "active": [
           {
@@ -835,6 +932,15 @@
             "power": 1
           },
           {
+            "name": "Arm Block",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Arm Block",
+            "type": "defend",
+            "power": 1
+          },{
             "name": "Arm Block",
             "type": "defend",
             "power": 1
@@ -858,6 +964,44 @@
       "class": "bandit",
       "faction": "bandits",
       "location": "south_road",
+      "level": 3,
+      "decks": {
+        "active": [
+          {
+            "name": "Shiva",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Shivb",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Shivc",
+            "type": "attack",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Dagger",
+          "type": "new_action",
+          "data": {
+            "name": "Dagger",
+            "type": "attack",
+            "power": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Goblin Scout",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "south_road",
+      "level": 1,
       "decks": {
         "active": [
           {
@@ -884,6 +1028,7 @@
       "class": "bandit",
       "faction": "bandits",
       "location": "illplaced",
+      "level": 2,
       "decks": {
         "active": [
           {
@@ -900,11 +1045,11 @@
       },
       "items": [
         {
-          "name": "Black Potion",
+          "name": "Ebony Blade",
           "type": "new_action",
           "data": {
-            "name": "Black Potion",
-            "type": "poison",
+            "name": "Ebony Blade",
+            "type": "attack",
             "power": 2
           }
         }

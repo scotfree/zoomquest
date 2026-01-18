@@ -193,6 +193,55 @@ class MarkerHelper
     }
 
     /**
+     * Decrement all markers for all entities at a location by 1
+     * Markers reaching 0 are removed
+     * @param string $locationId Location to process
+     * @return array Array of expired marker info
+     */
+    public function decrementAllMarkersAtLocation(string $locationId): array
+    {
+        $locationId = addslashes($locationId);
+        $expired = [];
+        
+        // Get all markers at this location
+        $markers = $this->game->getObjectListFromDB(
+            "SELECT em.entity_id, em.marker_type, em.marker_count, e.entity_name
+             FROM entity_marker em
+             JOIN entity e ON em.entity_id = e.entity_id
+             WHERE e.location_id = '$locationId' AND e.is_defeated = 0"
+        );
+        
+        foreach ($markers as $m) {
+            $entityId = (int)$m['entity_id'];
+            $markerType = $m['marker_type'];
+            $count = (int)$m['marker_count'];
+            
+            if ($count <= 1) {
+                // Remove marker entirely
+                $this->game->DbQuery(
+                    "DELETE FROM entity_marker 
+                     WHERE entity_id = $entityId AND marker_type = '" . addslashes($markerType) . "'"
+                );
+                $expired[] = [
+                    'entity_id' => $entityId,
+                    'entity_name' => $m['entity_name'],
+                    'marker_type' => $markerType,
+                    'expired' => true,
+                ];
+            } else {
+                // Decrement by 1
+                $newCount = $count - 1;
+                $this->game->DbQuery(
+                    "UPDATE entity_marker SET marker_count = $newCount 
+                     WHERE entity_id = $entityId AND marker_type = '" . addslashes($markerType) . "'"
+                );
+            }
+        }
+        
+        return $expired;
+    }
+
+    /**
      * Process watch vs sneak at a location
      * Watch markers cancel sneak markers 1:1, both are consumed
      * @return array Results of the cancellation

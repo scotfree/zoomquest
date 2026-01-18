@@ -24,8 +24,9 @@ function (dojo, declare, gamegui, counter) {
             console.log('ZoomQuest constructor');
             
             // Animation speed preference
-            this.animationSpeed = 'normal'; // fast, normal, slow
+            this.animationSpeed = 'normal'; // instant, fast, normal, slow
             this.animationDelays = {
+                instant: 0,
                 fast: 300,
                 normal: 800,
                 slow: 1500
@@ -91,7 +92,7 @@ function (dojo, declare, gamegui, counter) {
                 <div id="zq-container">
                     <div id="zq-top-bar">
                     <div id="zq-round-display" class="zq-panel">
-                            <span class="zq-label">Round</span>
+                            <span class="zq-label">Turn</span>
                         <span id="zq-round-number">${this.gamedatas.round}</span>
                             <span id="zq-round-location"></span>
                         </div>
@@ -150,6 +151,15 @@ function (dojo, declare, gamegui, counter) {
                 const from = positions[conn.location_from];
                 const to = positions[conn.location_to];
                 if (from && to) {
+                    // Calculate midpoint for the label
+                    const midX = (from.x + to.x) / 2;
+                    const midY = (from.y + to.y) / 2;
+                    
+                    // Calculate angle for label rotation (optional, can be removed if too complex)
+                    const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+                    // Keep text readable (not upside down)
+                    const labelAngle = (angle > 90 || angle < -90) ? angle + 180 : angle;
+                    
                     connectionsHtml += `
                         <line class="zq-connection" 
                               x1="${from.x}" y1="${from.y}" 
@@ -158,6 +168,19 @@ function (dojo, declare, gamegui, counter) {
                               data-to="${conn.location_to}">
                         </line>
                     `;
+                    
+                    // Add route name label if name exists
+                    if (conn.name) {
+                        connectionsHtml += `
+                            <text class="zq-connection-label"
+                                  x="${midX}" y="${midY}"
+                                  data-from="${conn.location_from}"
+                                  data-to="${conn.location_to}"
+                                  transform="rotate(${labelAngle}, ${midX}, ${midY})">
+                                ${conn.name}
+                            </text>
+                        `;
+                    }
                 }
             });
             svg.innerHTML = connectionsHtml;
@@ -462,6 +485,9 @@ function (dojo, declare, gamegui, counter) {
 
             const available = args.availableCharacters || [];
             const assigned = args.assignedCharacters || [];
+            
+            // Store available characters for later access in click handler
+            this.availableCharacters = available;
 
             // Build character cards
             let cardsHtml = '';
@@ -528,6 +554,9 @@ function (dojo, declare, gamegui, counter) {
             if (buttons) {
                 buttons.innerHTML = '<div class="zq-no-action">Waiting for game to start...</div>';
             }
+            
+            // Clear stored characters
+            this.availableCharacters = null;
         },
 
         summarizeDeck: function(deck) {
@@ -549,16 +578,184 @@ function (dojo, declare, gamegui, counter) {
             
             if (!characterId) return;
 
-            // Disable all cards to prevent double-click
+            // Find the character data from stored available characters
+            const character = this.availableCharacters?.find(c => 
+                parseInt(c.entity_id) === characterId
+            );
+            
+            if (!character) {
+                console.error('Character not found:', characterId);
+                return;
+            }
+
+            // Show preview popup instead of selecting immediately
+            this.showCharacterPreviewPopup(character);
+        },
+
+        showCharacterPreviewPopup: function(character) {
+            // Remove any existing popup
+            this.hideCharacterPreviewPopup();
+
+            // Store character data for selection
+            this.previewCharacter = character;
+            this.previewActiveCards = [...(character.active_cards || [])];
+            this.previewInactiveCards = [...(character.inactive_cards || [])];
+            this.previewEntityLevel = parseInt(character.entity_level) || 5;
+
+            const popup = document.createElement('div');
+            popup.id = 'zq-char-preview-popup';
+            popup.className = 'zq-plan-popup-enhanced zq-char-preview-popup';
+            popup.innerHTML = this.renderCharacterPreviewUI(character);
+
+            document.body.appendChild(popup);
+
+            // Setup click handlers for cards (reuse plan logic)
+            this.setupCharacterPreviewCardHandlers();
+
+            // Button handlers
+            document.getElementById('zq-char-select-btn').addEventListener('click', () => this.onConfirmCharacterSelection());
+            document.getElementById('zq-char-cancel-btn').addEventListener('click', () => this.hideCharacterPreviewPopup());
+        },
+
+        renderCharacterPreviewUI: function(character) {
+            const entityLevel = this.previewEntityLevel;
+            
+            return `
+                <div class="zq-plan-header">
+                    <h3>⚔️ ${character.entity_name}</h3>
+                    <p class="zq-char-preview-class">${character.entity_class} • ${character.location_name}</p>
+                    <p>Arrange your starting deck. Click cards to move between Active ↔ Inactive.</p>
+                </div>
+                <div class="zq-plan-decks">
+                    <div class="zq-plan-deck-column">
+                        <div class="zq-plan-deck-header">
+                            <span class="zq-deck-title">🃏 Active Deck</span>
+                            <span class="zq-deck-count" id="zq-preview-active-count">${this.previewActiveCards.length}/${entityLevel}</span>
+                        </div>
+                        <div class="zq-plan-deck-list" id="zq-preview-active-list" data-pile="active">
+                            ${this.renderPreviewCardList(this.previewActiveCards, 'active')}
+                        </div>
+                    </div>
+                    <div class="zq-plan-deck-column">
+                        <div class="zq-plan-deck-header">
+                            <span class="zq-deck-title">📦 Inactive</span>
+                            <span class="zq-deck-count" id="zq-preview-inactive-count">${this.previewInactiveCards.length}</span>
+                        </div>
+                        <div class="zq-plan-deck-list" id="zq-preview-inactive-list" data-pile="inactive">
+                            ${this.renderPreviewCardList(this.previewInactiveCards, 'inactive')}
+                        </div>
+                    </div>
+                </div>
+                <div class="zq-plan-actions">
+                    <button id="zq-char-select-btn" class="zq-plan-btn zq-plan-save">✓ Select Character</button>
+                    <button id="zq-char-cancel-btn" class="zq-plan-btn zq-plan-cancel">✗ Cancel</button>
+                </div>
+            `;
+        },
+
+        renderPreviewCardList: function(cards, pile) {
+            if (!cards || cards.length === 0) {
+                return '<div class="zq-deck-empty-slot">Empty</div>';
+            }
+            return cards.map((card, idx) => `
+                <div class="zq-preview-card-item" data-card-id="${card.card_id}" data-pile="${pile}">
+                    <span class="zq-card-icon">${this.getCardIcon(card.card_type)}</span>
+                    <span class="zq-card-name">${card.card_name || card.card_type}</span>
+                    <span class="zq-card-meta">${card.card_type} ${card.card_power}</span>
+                </div>
+            `).join('');
+        },
+
+        setupCharacterPreviewCardHandlers: function() {
+            const activeList = document.getElementById('zq-preview-active-list');
+            const inactiveList = document.getElementById('zq-preview-inactive-list');
+            
+            const handleListClick = (e) => {
+                const cardEl = e.target.closest('.zq-preview-card-item');
+                if (cardEl) {
+                    this.onPreviewCardClick({ currentTarget: cardEl });
+                }
+            };
+            
+            if (activeList) activeList.addEventListener('click', handleListClick);
+            if (inactiveList) inactiveList.addEventListener('click', handleListClick);
+        },
+
+        onPreviewCardClick: function(e) {
+            const cardEl = e.currentTarget;
+            const cardId = parseInt(cardEl.dataset.cardId);
+            const currentPile = cardEl.dataset.pile;
+            const entityLevel = this.previewEntityLevel;
+
+            if (currentPile === 'active') {
+                // Move to inactive
+                const cardIndex = this.previewActiveCards.findIndex(c => parseInt(c.card_id) === cardId);
+                if (cardIndex !== -1) {
+                    const [card] = this.previewActiveCards.splice(cardIndex, 1);
+                    this.previewInactiveCards.push(card);
+                }
+            } else {
+                // Move to active (check capacity)
+                if (this.previewActiveCards.length >= entityLevel) {
+                    this.showMessage(_("Active deck is full! Move a card to inactive first."), "error");
+                    return;
+                }
+                const cardIndex = this.previewInactiveCards.findIndex(c => parseInt(c.card_id) === cardId);
+                if (cardIndex !== -1) {
+                    const [card] = this.previewInactiveCards.splice(cardIndex, 1);
+                    this.previewActiveCards.push(card);
+                }
+            }
+
+            // Re-render the lists
+            this.updateCharacterPreviewLists();
+        },
+
+        updateCharacterPreviewLists: function() {
+            const entityLevel = this.previewEntityLevel;
+            const activeList = document.getElementById('zq-preview-active-list');
+            const inactiveList = document.getElementById('zq-preview-inactive-list');
+            const activeCount = document.getElementById('zq-preview-active-count');
+            const inactiveCount = document.getElementById('zq-preview-inactive-count');
+
+            if (activeList) {
+                activeList.innerHTML = this.renderPreviewCardList(this.previewActiveCards, 'active');
+            }
+            if (inactiveList) {
+                inactiveList.innerHTML = this.renderPreviewCardList(this.previewInactiveCards, 'inactive');
+            }
+            if (activeCount) {
+                activeCount.textContent = `${this.previewActiveCards.length}/${entityLevel}`;
+            }
+            if (inactiveCount) {
+                inactiveCount.textContent = `${this.previewInactiveCards.length}`;
+            }
+        },
+
+        onConfirmCharacterSelection: function() {
+            if (!this.previewCharacter) return;
+
+            const characterId = parseInt(this.previewCharacter.entity_id);
+            
+            // Build deck arrangement
+            const deckArrangement = JSON.stringify({
+                activeCards: this.previewActiveCards.map(c => c.card_id),
+                inactiveCards: this.previewInactiveCards.map(c => c.card_id)
+            });
+
+            // Disable all character cards
             document.querySelectorAll('.zq-char-selectable').forEach(c => {
                 c.classList.remove('zq-char-selectable');
                 c.classList.add('zq-char-selecting');
             });
-            card.classList.add('zq-char-selected');
+
+            // Hide popup
+            this.hideCharacterPreviewPopup();
 
             // Send selection to server
             this.bgaPerformAction('actSelectCharacter', {
-                characterId: characterId
+                characterId: characterId,
+                deckArrangement: deckArrangement
             }).catch(err => {
                 console.error('Character selection failed:', err);
                 // Re-enable selection on error
@@ -566,8 +763,16 @@ function (dojo, declare, gamegui, counter) {
                     c.classList.remove('zq-char-selecting');
                     c.classList.add('zq-char-selectable');
                 });
-                card.classList.remove('zq-char-selected');
             });
+        },
+
+        hideCharacterPreviewPopup: function() {
+            const popup = document.getElementById('zq-char-preview-popup');
+            if (popup) popup.remove();
+            this.previewCharacter = null;
+            this.previewActiveCards = [];
+            this.previewInactiveCards = [];
+            this.previewEntityLevel = 5;
         },
 
         //
@@ -658,7 +863,7 @@ function (dojo, declare, gamegui, counter) {
                 <div class="zq-deck-card-readonly">
                     <span class="zq-card-icon">${this.getCardIcon(card.card_type)}</span>
                     <span class="zq-card-name">${card.card_name || card.card_type}</span>
-                    ${card.card_power > 1 ? `<span class="zq-card-power">×${card.card_power}</span>` : ''}
+                    <span class="zq-card-meta">${card.card_type} ${card.card_power}</span>
                 </div>
             `).join('');
         },
@@ -671,7 +876,7 @@ function (dojo, declare, gamegui, counter) {
                 <div class="zq-deck-card-item" data-card-id="${card.card_id}" data-pile="${pile}">
                     <span class="zq-card-icon">${this.getCardIcon(card.card_type)}</span>
                     <span class="zq-card-name">${card.card_name || card.card_type}</span>
-                    ${card.card_power > 1 ? `<span class="zq-card-power">×${card.card_power}</span>` : ''}
+                    <span class="zq-card-meta">${card.card_type} ${card.card_power}</span>
                 </div>
             `).join('');
         },
@@ -682,6 +887,7 @@ function (dojo, declare, gamegui, counter) {
         },
 
         showEnhancedPlanPopup: function() {
+            console.log('=== SHOW ENHANCED PLAN POPUP ===');
             // Remove any existing popup
             this.hidePlanPopup();
 
@@ -691,12 +897,23 @@ function (dojo, declare, gamegui, counter) {
             this.levelUpMode = false;
             this.selectedForLevelUp = [];
 
+            console.log('Initial state:');
+            console.log('  this.activeCards:', this.activeCards);
+            console.log('  this.inactiveCards:', this.inactiveCards);
+            console.log('  planActiveCards:', this.planActiveCards);
+            console.log('  planInactiveCards:', this.planInactiveCards);
+            console.log('  entityLevel:', this.entityLevel);
+
             const popup = document.createElement('div');
             popup.id = 'zq-plan-popup';
             popup.className = 'zq-plan-popup-enhanced';
             popup.innerHTML = this.renderEnhancedPlanUI();
 
             document.body.appendChild(popup);
+            
+            console.log('Popup HTML added to DOM');
+            console.log('Active list innerHTML:', document.getElementById('zq-plan-active-list')?.innerHTML);
+            console.log('Inactive list innerHTML:', document.getElementById('zq-plan-inactive-list')?.innerHTML);
 
             // Setup click handlers for cards
             this.setupPlanCardClickHandlers();
@@ -709,6 +926,7 @@ function (dojo, declare, gamegui, counter) {
             if (levelUpBtn) {
                 levelUpBtn.addEventListener('click', () => this.startLevelUpInPopup());
             }
+            console.log('=================================');
         },
 
         renderEnhancedPlanUI: function() {
@@ -751,6 +969,7 @@ function (dojo, declare, gamegui, counter) {
         },
 
         renderPlanCardList: function(cards, pile) {
+            console.log('renderPlanCardList called with pile:', pile, 'cards:', cards?.length);
             if (!cards || cards.length === 0) {
                 return '<div class="zq-deck-empty-slot">Empty</div>';
             }
@@ -758,15 +977,47 @@ function (dojo, declare, gamegui, counter) {
                 <div class="zq-plan-card-item" draggable="true" data-card-id="${card.card_id}" data-pile="${pile}">
                     <span class="zq-card-icon">${this.getCardIcon(card.card_type)}</span>
                     <span class="zq-card-name">${card.card_name || card.card_type}</span>
-                    ${card.card_power > 1 ? `<span class="zq-card-power">×${card.card_power}</span>` : ''}
+                    <span class="zq-card-meta">${card.card_type} ${card.card_power}</span>
                 </div>
             `).join('');
         },
 
         setupPlanCardClickHandlers: function() {
-            document.querySelectorAll('.zq-plan-card-item').forEach(card => {
-                card.addEventListener('click', (e) => this.onPlanCardClick(e));
-            });
+            // Use event delegation on the container lists for more robust click handling
+            // This ensures clicks work even after cards are moved between lists
+            const activeList = document.getElementById('zq-plan-active-list');
+            const inactiveList = document.getElementById('zq-plan-inactive-list');
+            
+            console.log('=== PLAN CLICK HANDLERS SETUP ===');
+            console.log('activeList element:', activeList);
+            console.log('inactiveList element:', inactiveList);
+            console.log('Active cards in list:', activeList?.querySelectorAll('.zq-plan-card-item').length);
+            console.log('Inactive cards in list:', inactiveList?.querySelectorAll('.zq-plan-card-item').length);
+            
+            const handleListClick = (e) => {
+                console.log('=== LIST CLICK EVENT ===');
+                console.log('e.target:', e.target);
+                console.log('e.target.className:', e.target.className);
+                const cardEl = e.target.closest('.zq-plan-card-item');
+                console.log('Found card element:', cardEl);
+                if (cardEl) {
+                    console.log('Card data-pile:', cardEl.dataset.pile);
+                    console.log('Card data-card-id:', cardEl.dataset.cardId);
+                    this.onPlanCardClick({ currentTarget: cardEl });
+                } else {
+                    console.log('No .zq-plan-card-item found in ancestors');
+                }
+            };
+            
+            if (activeList) {
+                activeList.addEventListener('click', handleListClick);
+                console.log('Added click handler to activeList');
+            }
+            if (inactiveList) {
+                inactiveList.addEventListener('click', handleListClick);
+                console.log('Added click handler to inactiveList');
+            }
+            console.log('=================================');
             
             // Also setup drag and drop for reordering
             this.setupPlanDragAndDrop();
@@ -777,12 +1028,19 @@ function (dojo, declare, gamegui, counter) {
             const cardId = cardEl.dataset.cardId;
             const currentPile = cardEl.dataset.pile;
 
+            console.log('=== onPlanCardClick ===');
+            console.log('cardEl:', cardEl);
+            console.log('cardId:', cardId);
+            console.log('currentPile:', currentPile, '(type:', typeof currentPile, ')');
+            console.log('levelUpMode:', this.levelUpMode);
+
             if (this.levelUpMode) {
+                console.log('In levelUpMode - toggling sacrifice selection');
                 // Toggle selection for sacrifice
                 cardEl.classList.toggle('zq-selected-for-sacrifice');
                 if (cardEl.classList.contains('zq-selected-for-sacrifice')) {
                     this.selectedForLevelUp.push(cardId);
-                        } else {
+                } else {
                     this.selectedForLevelUp = this.selectedForLevelUp.filter(id => id !== cardId);
                 }
                 this.updateLevelUpUI();
@@ -794,19 +1052,30 @@ function (dojo, declare, gamegui, counter) {
             const inactiveList = document.getElementById('zq-plan-inactive-list');
             const activeCount = activeList.querySelectorAll('.zq-plan-card-item').length;
 
+            console.log('activeList:', activeList);
+            console.log('inactiveList:', inactiveList);
+            console.log('activeCount:', activeCount);
+            console.log('entityLevel:', this.entityLevel);
+            console.log('Comparison: currentPile === "active":', currentPile === 'active');
+
             if (currentPile === 'active') {
+                console.log('>>> MOVING TO INACTIVE');
                 // Move to inactive
                 cardEl.dataset.pile = 'inactive';
                 inactiveList.appendChild(cardEl);
                 // Update internal arrays
                 const card = this.planActiveCards.find(c => c.card_id == cardId);
+                console.log('Found card in planActiveCards:', card);
                 if (card) {
                     this.planActiveCards = this.planActiveCards.filter(c => c.card_id != cardId);
                     this.planInactiveCards.push(card);
                 }
+                console.log('After move - planActiveCards:', this.planActiveCards.length, 'planInactiveCards:', this.planInactiveCards.length);
             } else {
+                console.log('>>> MOVING TO ACTIVE');
                 // Move to active - check capacity
                 if (activeCount >= this.entityLevel) {
+                    console.log('BLOCKED: Active deck at capacity');
                     this.showMessage(_("Active deck is at capacity! Move a card out first."), "error");
                     return;
                 }
@@ -814,10 +1083,12 @@ function (dojo, declare, gamegui, counter) {
                 activeList.appendChild(cardEl);
                 // Update internal arrays
                 const card = this.planInactiveCards.find(c => c.card_id == cardId);
+                console.log('Found card in planInactiveCards:', card);
                 if (card) {
                     this.planInactiveCards = this.planInactiveCards.filter(c => c.card_id != cardId);
                     this.planActiveCards.push(card);
                 }
+                console.log('After move - planActiveCards:', this.planActiveCards.length, 'planInactiveCards:', this.planInactiveCards.length);
             }
 
             // Remove empty placeholder if present
@@ -835,6 +1106,7 @@ function (dojo, declare, gamegui, counter) {
             }
 
             this.updatePlanDeckCounts();
+            console.log('=== onPlanCardClick complete ===');
         },
 
         updatePlanDeckCounts: function() {
@@ -899,6 +1171,10 @@ function (dojo, declare, gamegui, counter) {
                 cardIdsJson: JSON.stringify(this.selectedForLevelUp)
             }).then(() => {
                 this.hidePlanPopup();
+            }).catch(err => {
+                console.error('Level up failed:', err);
+                // Re-enable the UI on error
+                this.cancelLevelUp();
             });
         },
 
@@ -989,31 +1265,8 @@ function (dojo, declare, gamegui, counter) {
             confirmBtn.disabled = this.selectedForLevelUp.length !== this.entityLevel;
         },
 
-        confirmLevelUp: function() {
-            if (this.selectedForLevelUp.length !== this.entityLevel) {
-                return;
-            }
-
-            // Send level up action
-            this.bgaPerformAction('actLevelUp', {
-                cardIdsJson: JSON.stringify(this.selectedForLevelUp)
-            }).then(() => {
-                // Update local state
-                this.entityLevel++;
-                this.canLevelUp = false;
-                
-                // Remove sacrificed cards from UI
-                this.selectedForLevelUp.forEach(cardId => {
-                    const cardEl = document.querySelector(`[data-card-id="${cardId}"]`);
-                    if (cardEl) cardEl.remove();
-                });
-
-                this.cancelLevelUp();
-                this.updateDeckCounts();
-            }).catch(err => {
-                console.error('Level up failed:', err);
-            });
-        },
+        // Note: confirmLevelUp is defined earlier in startLevelUpInPopup context
+        // This duplicate was causing issues - removed
 
         // Legacy function - no longer used with read-only panel
         cancelLevelUp: function() {
@@ -1184,14 +1437,48 @@ function (dojo, declare, gamegui, counter) {
         },
 
         highlightAdjacentNodes: function(adjacentLocations) {
+            // Clear previous highlights
             document.querySelectorAll('.zq-node').forEach(node => {
                 node.classList.remove('zq-node-adjacent');
             });
+            document.querySelectorAll('.zq-connection').forEach(conn => {
+                conn.classList.remove('zq-connection-adjacent');
+            });
+            document.querySelectorAll('.zq-connection-label').forEach(label => {
+                label.classList.remove('zq-connection-label-adjacent');
+            });
+
+            // Get current location ID from highlighted node
+            const currentNode = document.querySelector('.zq-node-current');
+            const currentLocationId = currentNode ? currentNode.dataset.location : null;
 
             adjacentLocations.forEach(loc => {
+                // Highlight the adjacent node
                 const node = document.getElementById(`zq-node-${loc.location_id}`);
                 if (node) {
                     node.classList.add('zq-node-adjacent');
+                }
+
+                // Highlight the connection line between current and adjacent
+                if (currentLocationId) {
+                    document.querySelectorAll('.zq-connection').forEach(conn => {
+                        const from = conn.dataset.from;
+                        const to = conn.dataset.to;
+                        if ((from === currentLocationId && to === loc.location_id) ||
+                            (to === currentLocationId && from === loc.location_id)) {
+                            conn.classList.add('zq-connection-adjacent');
+                        }
+                    });
+                    
+                    // Highlight the route label
+                    document.querySelectorAll('.zq-connection-label').forEach(label => {
+                        const from = label.dataset.from;
+                        const to = label.dataset.to;
+                        if ((from === currentLocationId && to === loc.location_id) ||
+                            (to === currentLocationId && from === loc.location_id)) {
+                            label.classList.add('zq-connection-label-adjacent');
+                        }
+                    });
                 }
             });
         },
@@ -1215,7 +1502,8 @@ function (dojo, declare, gamegui, counter) {
                     ${this.activeCards.map((card, idx) => `
                         <div class="zq-plan-card" draggable="true" data-card-id="${card.card_id}" data-index="${idx}">
                             <span class="zq-plan-card-icon">${this.getCardIcon(card.card_type)}</span>
-                            <span class="zq-plan-card-type">${card.card_type}</span>
+                            <span class="zq-plan-card-name">${card.card_name || card.card_type}</span>
+                            <span class="zq-card-meta">${card.card_type} ${card.card_power}</span>
                             <span class="zq-plan-card-order">#${idx + 1}</span>
                         </div>
                     `).join('')}
@@ -1407,10 +1695,24 @@ function (dojo, declare, gamegui, counter) {
             const container = document.getElementById('zq-map-container');
             const containerRect = container.getBoundingClientRect();
             
-            popup.style.left = (rect.left - containerRect.left + rect.width / 2) + 'px';
-            popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
-
+            // Add popup to DOM first to measure its height
             container.appendChild(popup);
+            const popupRect = popup.getBoundingClientRect();
+            
+            // Check if location is in bottom third of map
+            const nodeRelativeY = rect.top - containerRect.top + rect.height / 2;
+            const isInBottomThird = nodeRelativeY > (containerRect.height * 0.67);
+            
+            popup.style.left = (rect.left - containerRect.left + rect.width / 2) + 'px';
+            
+            if (isInBottomThird) {
+                // Position above the node
+                popup.style.top = (rect.top - containerRect.top - popupRect.height - 10) + 'px';
+                popup.classList.add('zq-popup-above');
+            } else {
+                // Position below the node (default)
+                popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
+            }
 
             // Store reference for button handlers
             this.currentPopupLocation = locationId;
@@ -1587,6 +1889,21 @@ function (dojo, declare, gamegui, counter) {
 
         setupNotifications: function() {
             console.log('Setting up notifications');
+            
+            // Log preference configuration
+            console.log('=== ANIMATION PREFERENCE DEBUG ===');
+            console.log('animationDelays config:', this.animationDelays);
+            try {
+                const pref = this.getGameUserPreference(100);
+                console.log('Preference 100 (Animation Speed) raw value:', pref, typeof pref);
+                const speeds = { 0: 'instant', 1: 'fast', 2: 'normal', 3: 'slow' };
+                console.log('Mapped speed:', speeds[pref] || 'normal (fallback)');
+                console.log('Resulting delay (ms):', this.getAnimationDelay());
+            } catch (e) {
+                console.log('Could not read preference:', e);
+            }
+            console.log('=================================');
+            
             this.bgaSetupPromiseNotifications();
         },
 
@@ -1728,7 +2045,9 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_sequenceStart: async function(args) {
-            console.log('Sequence start:', args);
+            console.log('=== SEQUENCE START ===');
+            console.log('Full sequence data:', JSON.stringify(args, null, 2));
+            console.log('Timestamp:', new Date().toISOString());
 
             this.battleEnded = false;
             this.showBattlePanel();
@@ -1748,11 +2067,16 @@ function (dojo, declare, gamegui, counter) {
                 <div class="zq-battle-log" id="zq-battle-log"></div>
             `;
 
-            await this.wait(this.getAnimationDelay());
+            const delay = this.getAnimationDelay();
+            console.log('sequenceStart applying delay:', delay, 'ms');
+            await this.wait(delay);
+            console.log('sequenceStart delay complete');
         },
 
         notif_sequenceCardsDrawn: async function(args) {
-            console.log('Sequence cards drawn:', args);
+            console.log('=== SEQUENCE CARDS DRAWN (Round ' + args.round + ') ===');
+            console.log('Cards drawn data:', args.drawn_cards);
+            console.log('Timestamp:', new Date().toISOString());
 
             const log = document.getElementById('zq-battle-log');
             if (log && args.drawn_cards) {
@@ -1779,11 +2103,16 @@ function (dojo, declare, gamegui, counter) {
                 }
             }
 
-            await this.wait(this.getAnimationDelay());
+            const delay = this.getAnimationDelay();
+            console.log('sequenceCardsDrawn applying delay:', delay, 'ms');
+            await this.wait(delay);
+            console.log('sequenceCardsDrawn delay complete');
         },
 
         notif_cardResolved: async function(args) {
-            console.log('Card resolved:', args);
+            console.log('=== CARD RESOLVED ===');
+            console.log('Card:', args.card_type, 'Entity:', args.entity_name, 'Effect:', args.effect);
+            console.log('Timestamp:', new Date().toISOString());
 
             const log = document.getElementById('zq-battle-log');
             if (log) {
@@ -1869,6 +2198,10 @@ function (dojo, declare, gamegui, counter) {
                         effectText = `💀 Target ${args.target_name || 'unknown'} already defeated`;
                         effectClass = 'zq-effect-none';
                         break;
+                    case 'target_hidden':
+                        effectText = `🥷 Target ${args.target_name || 'unknown'} is hidden!`;
+                        effectClass = 'zq-effect-blocked';
+                        break;
                     case 'no_target':
                         effectText = `❌ No valid target`;
                         effectClass = 'zq-effect-none';
@@ -1893,7 +2226,10 @@ function (dojo, declare, gamegui, counter) {
             }
 
             this.updateEntityPanel();
-            await this.wait(this.getAnimationDelay());
+            const delay = this.getAnimationDelay();
+            console.log('cardResolved applying delay:', delay, 'ms');
+            await this.wait(delay);
+            console.log('cardResolved delay complete');
         },
 
         notif_entityDefeated: async function(args) {
@@ -1919,7 +2255,9 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_sequenceEnd: async function(args) {
-            console.log('Sequence end:', args);
+            console.log('=== SEQUENCE END ===');
+            console.log('Result:', args);
+            console.log('Timestamp:', new Date().toISOString());
 
             const log = document.getElementById('zq-battle-log');
             if (log) {
@@ -1937,6 +2275,7 @@ function (dojo, declare, gamegui, counter) {
             this.clearCardHighlight();
 
             this.battleEnded = true;
+            console.log('Sequence complete, no delay applied (end notification)');
         },
 
         notif_sequenceContinues: async function(args) {
@@ -1945,7 +2284,9 @@ function (dojo, declare, gamegui, counter) {
         },
 
         notif_sequenceRoundSummary: async function(args) {
-            console.log('Sequence round summary:', args);
+            console.log('=== SEQUENCE ROUND SUMMARY (Round ' + args.round + ') ===');
+            console.log('Full round data:', JSON.stringify(args, null, 2));
+            console.log('Timestamp:', new Date().toISOString());
 
             const log = document.getElementById('zq-battle-log');
             if (!log) return;
@@ -2034,7 +2375,10 @@ function (dojo, declare, gamegui, counter) {
             // Auto-scroll to latest round
             log.scrollTop = log.scrollHeight;
 
-            await this.wait(this.getAnimationDelay());
+            const delay = this.getAnimationDelay();
+            console.log('sequenceRoundSummary (Round ' + args.round + ') applying delay:', delay, 'ms');
+            await this.wait(delay);
+            console.log('sequenceRoundSummary (Round ' + args.round + ') delay complete, timestamp:', new Date().toISOString());
         },
 
         formatResolutionLine: function(r) {
@@ -2097,6 +2441,8 @@ function (dojo, declare, gamegui, counter) {
                     if (r.effect === 'poison') {
                         const duration = r.duration || 3;
                         return `${entityName} poisons ${targetName} 🧪 (${duration} rounds)`;
+                    } else if (r.effect === 'target_hidden') {
+                        return `${entityName}'s poison misses - ${targetName} is hidden! 🥷`;
                     } else if (r.effect === 'target_defeated') {
                         return `${entityName}'s poison finds ${targetName} already defeated`;
                     }
@@ -2106,6 +2452,8 @@ function (dojo, declare, gamegui, counter) {
                     if (r.effect === 'mark') {
                         const duration = r.duration || 2;
                         return `${entityName} marks ${targetName} 🎯 (${duration} rounds, +1 damage)`;
+                    } else if (r.effect === 'target_hidden') {
+                        return `${entityName}'s mark misses - ${targetName} is hidden! 🥷`;
                     } else if (r.effect === 'target_defeated') {
                         return `${entityName}'s mark finds ${targetName} already defeated`;
                     }
@@ -2115,6 +2463,7 @@ function (dojo, declare, gamegui, counter) {
                     return `${entityName} offers items for sale 🏷️`;
 
                 case 'wealth':
+                case 'buy':
                     if (r.effect === 'purchased') {
                         const itemName = r.item?.item_name || 'an item';
                         return `${entityName} buys ${itemName} from ${targetName} 💰`;
@@ -2271,7 +2620,8 @@ function (dojo, declare, gamegui, counter) {
                 'mark': '🎯',
                 'sell': '🏷️',
                 'steal': '🤏',
-                'wealth': '💰'
+                'wealth': '💰',
+                'buy': '🪙'
             };
             return icons[cardType] || '🃏';
         },
@@ -2339,14 +2689,14 @@ function (dojo, declare, gamegui, counter) {
         },
 
         getAnimationDelay: function() {
-            // Try to get user preference, default to normal if not set
-            let speed = 'normal';
+            // Try to get user preference, default to instant for dev (normal for prod)
+            let speed = 'instant'; // Default for when preference unavailable (e.g. BGA Studio)
             try {
-            const pref = this.getGameUserPreference(100);
-            const speeds = { 1: 'fast', 2: 'normal', 3: 'slow' };
-                speed = speeds[pref] || 'normal';
+                const pref = this.getGameUserPreference(100);
+                const speeds = { 0: 'instant', 1: 'fast', 2: 'normal', 3: 'slow' };
+                speed = speeds[pref] || 'instant';
             } catch (e) {
-                // Preference not defined, use default
+                // Preference not defined, use instant for faster dev iteration
             }
             return this.animationDelays[speed];
         },

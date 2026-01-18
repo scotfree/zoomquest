@@ -73,7 +73,7 @@ class RoundStart extends GameState
 
         // Notify players of new round (with private goal progress)
         foreach ($goalProgressByPlayer as $playerId => $goalData) {
-            $this->notify->player($playerId, 'roundStart', clienttranslate('Round ${round} begins'), [
+            $this->notify->player($playerId, 'roundStart', clienttranslate('Turn ${round} begins'), [
                 'round' => $round,
                 'goal_progress' => $goalData['progress'],
                 'goal_complete' => $goalData['complete'],

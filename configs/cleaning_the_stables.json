@@ -1,5 +1,5 @@
 {
-  "level_name": "test",
+  "level_name": "Cleaning The Stables (Tutorial)",
   "round": 0,
   "background_image": "img/test_0.png",
   "victory": {
@@ -16,66 +16,7 @@
       "threshold": 4,
       "points": 2
     },
-    {
-      "id": "settler",
-      "name": "The Settler",
-      "description": "Spend 4+ turns in settled areas",
-      "icon": "🏠",
-      "track": "turns_in_terrain",
-      "filter": "settled",
-      "threshold": 4,
-      "points": 2
-    },
-    {
-      "id": "wildling",
-      "name": "The Wildling",
-      "description": "Spend 4+ turns in wilderness",
-      "icon": "🌲",
-      "track": "turns_in_terrain",
-      "filter": "wilderness",
-      "threshold": 4,
-      "points": 2
-    },
-    {
-      "id": "northerner",
-      "name": "The Northerner",
-      "description": "Spend 3+ turns in the North",
-      "icon": "⬆️",
-      "track": "turns_in_direction",
-      "filter": "north",
-      "threshold": 3,
-      "points": 2
-    },
-    {
-      "id": "southerner",
-      "name": "The Southerner",
-      "description": "Spend 3+ turns in the South",
-      "icon": "⬇️",
-      "track": "turns_in_direction",
-      "filter": "south",
-      "threshold": 3,
-      "points": 2
-    },
-    {
-      "id": "easterner",
-      "name": "The Easterner",
-      "description": "Spend 3+ turns in the East",
-      "icon": "➡️",
-      "track": "turns_in_direction",
-      "filter": "east",
-      "threshold": 3,
-      "points": 2
-    },
-    {
-      "id": "westerner",
-      "name": "The Westerner",
-      "description": "Spend 3+ turns in the West",
-      "icon": "⬅️",
-      "track": "turns_in_direction",
-      "filter": "west",
-      "threshold": 3,
-      "points": 2
-    },
+    
     {
       "id": "slayer",
       "name": "The Slayer",
@@ -96,16 +37,6 @@
       "points": 2
     },
     {
-      "id": "goblin_slayer",
-      "name": "The Goblin Slayer",
-      "description": "Defeat 2+ goblins",
-      "icon": "👺",
-      "track": "killing_blows_faction",
-      "filter": "goblins",
-      "threshold": 2,
-      "points": 2
-    },
-    {
       "id": "pacifist",
       "name": "The Pacifist",
       "description": "End the game with 0 killing blows",
@@ -116,31 +47,12 @@
       "points": 3
     },
     {
-      "id": "protector",
-      "name": "The Protector",
-      "description": "Block 4+ attacks for allies",
-      "icon": "🛡️",
-      "track": "blocks_for_allies",
-      "threshold": 4,
-      "points": 2
-    },
-    {
       "id": "shadow",
       "name": "The Shadow",
       "description": "Play Sneak 3+ times",
       "icon": "🥷",
       "track": "card_plays",
       "filter": "sneak",
-      "threshold": 3,
-      "points": 2
-    },
-    {
-      "id": "poisoner",
-      "name": "The Poisoner",
-      "description": "Apply Poison 3+ times",
-      "icon": "🧪",
-      "track": "card_plays",
-      "filter": "poison",
       "threshold": 3,
       "points": 2
     }
@@ -177,8 +89,8 @@
     "locations": [
       {
         "id": "stables",
-        "name": "Town Stables",
-        "description": "Horses and supplies for the road",
+        "name": "Illplaced Farm",
+        "description": "They should have knowed.",
         "terrain": "settled",
         "direction": "center",
         "x": 0.5282877316857899,
@@ -186,8 +98,8 @@
       },
       {
         "id": "illplaced",
-        "name": "Illplaced Farm",
-        "description": "They should have knowed.",
+        "name": "Town Stables",
+        "description": "Horses and supplies for the road",
         "terrain": "settled",
         "direction": "south",
         "x": 0.03225948808473076,
@@ -249,9 +161,7 @@
         "active": [
           {"name": "Greatsword", "type": "attack", "power": 2},
           {"name": "Dagger", "type": "attack", "power": 1},
-          {"name": "Sword", "type": "attack", "power": 1},
-          {"name": "Axe", "type": "attack", "power": 1},
-          {"name": "Shield Bash", "type": "attack", "power": 1}
+          {"name": "Sword", "type": "attack", "power": 1}
         ]
       }
     },
@@ -264,9 +174,7 @@
         "active": [
           {"name": "Blessed Shield", "type": "defend", "power": 2},
           {"name": "Divine Heal", "type": "heal", "power": 2},
-          {"name": "Ward", "type": "defend", "power": 1},
-          {"name": "Prayer", "type": "heal", "power": 1},
-          {"name": "Holy Mace", "type": "attack", "power": 1}
+          {"name": "Ward", "type": "defend", "power": 1}
         ]
       }
     },
@@ -279,10 +187,7 @@
         "active": [
           {"name": "Lance", "type": "attack", "power": 2},
           {"name": "Tower Shield", "type": "defend", "power": 2},
-          {"name": "Sword", "type": "attack", "power": 1},
-          {"name": "Buckler", "type": "defend", "power": 1},
-          {"name": "Gauntlet Strike", "type": "attack", "power": 1},
-          {"name": "Helmet Butt", "type": "attack", "power": 1}
+          {"name": "Sword", "type": "attack", "power": 1}
         ]
       }
     },
@@ -295,9 +200,7 @@
         "active": [
           {"name": "Smite", "type": "attack", "power": 2},
           {"name": "Holy Shield", "type": "defend", "power": 1},
-          {"name": "Lay on Hands", "type": "heal", "power": 2},
-          {"name": "Divine Protection", "type": "defend", "power": 1},
-          {"name": "Mace", "type": "attack", "power": 1}
+          {"name": "Lay on Hands", "type": "heal", "power": 2}
         ]
       }
     },
@@ -310,14 +213,35 @@
         "active": [
           {"name": "Cloak", "type": "sneak", "power": 2},
           {"name": "Shadow Step", "type": "sneak", "power": 1},
-          {"name": "Backstab Dagger", "type": "attack", "power": 1},
-          {"name": "Fade", "type": "sneak", "power": 1},
-          {"name": "Pickpocket", "type": "steal", "power": 1}
+          {"name": "Backstab Dagger", "type": "attack", "power": 1}
         ]
       }
     }
   ],
   "monsters": [
+    {
+      "name": "Stable Hand",
+      "class": "merchant",
+      "faction": "friendly",
+      "location": "stables",
+      "level": 1,
+      "decks": {
+        "active": [
+          {"name": "Sell", "type": "sell", "power": 1}
+        ]
+      },
+      "items": [
+        {
+          "name": "Rad Sword",
+          "type": "new_action",
+          "data": {
+            "name": "Rad Sword",
+            "type": "attack",
+            "power": 2
+          }
+        }
+      ]
+    },
     {
       "name": "Bandito",
       "class": "bandit",
@@ -326,16 +250,17 @@
       "decks": {
         "active": [
           {"name": "Cutlass", "type": "attack", "power": 1},
-          {"name": "Parry", "type": "defend", "power": 1}
+          {"name": "Parry", "type": "defend", "power": 1},
+          {"name": "Cutlass", "type": "attack", "power": 1}
         ]
       },
       "items": [
         {
-          "name": "Rusty Sword",
+          "name": "Copper Coins",
           "type": "new_action",
           "data": {
-            "name": "Rusty Sword",
-            "type": "attack",
+            "name": "Copper Coins",
+            "type": "buy",
             "power": 1
           }
         }

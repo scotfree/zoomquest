@@ -322,8 +322,8 @@
                 <div class="scenario-title">📜 tempe_junction</div>
                 <div class="scenario-victory">🎯 Clear all monsters from Tempe Junction!</div>
                 <div class="scenario-stats">
-                    📍 18 locations | 🔗 23 paths<br>
-                    ⚔️ 5 heroes | 🧟 7 monster types
+                    📍 18 locations | 🔗 25 paths<br>
+                    ⚔️ 5 heroes | 🧟 10 monster types
                 </div>
             </div>
             <div class="info-content" id="info-content">
@@ -489,8 +489,8 @@
         "description": "Stalls selling goods from across the frontier",
         "terrain": "settled",
         "direction": "south",
-        "x": 0.4646954986760812,
-        "y": 0.5473053892215569
+        "x": 0.3861429832303619,
+        "y": 0.45748502994011975
       },
       {
         "id": "blacksmith",
@@ -669,6 +669,12 @@
         "bidirectional": true
       },
       {
+        "name": "Aardvark Track",
+        "from": "town_square",
+        "to": "mountain_pass",
+        "bidirectional": true
+      },
+      {
         "name": "Market Road",
         "from": "town_square",
         "to": "market",
@@ -711,30 +717,6 @@
         "bidirectional": true
       },
       {
-        "name": "South Trail",
-        "from": "stables",
-        "to": "south_road",
-        "bidirectional": true
-      },
-      {
-        "name": "Farm Track",
-        "from": "south_road",
-        "to": "farm",
-        "bidirectional": true
-      },
-      {
-        "name": "Tricky Track",
-        "from": "south_road",
-        "to": "illplaced",
-        "bidirectional": true
-      },
-      {
-        "name": "Gut Lane",
-        "from": "stables",
-        "to": "town_square",
-        "bidirectional": true
-      },
-      {
         "name": "Bridge Road",
         "from": "blacksmith",
         "to": "east_bridge",
@@ -771,6 +753,36 @@
         "bidirectional": true
       },
       {
+        "name": "Market Path",
+        "from": "inn",
+        "to": "market",
+        "bidirectional": true
+      },
+      {
+        "name": "North Road",
+        "from": "market",
+        "to": "north_gate",
+        "bidirectional": true
+      },
+      {
+        "name": "Bridge Path",
+        "from": "north_gate",
+        "to": "east_bridge",
+        "bidirectional": true
+      },
+      {
+        "name": "Blacksmith Path",
+        "from": "stables",
+        "to": "blacksmith",
+        "bidirectional": true
+      },
+      {
+        "name": "Farm Path",
+        "from": "blacksmith",
+        "to": "farm",
+        "bidirectional": true
+      },
+      {
         "name": "Ruined Path",
         "from": "ruins",
         "to": "abandoned_mine",
@@ -786,11 +798,33 @@
       "location": "stables",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "defend",
-          "attack",
-          "heal"
+          {
+            "name": "Longsword",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Hand Axe",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Round Shield",
+            "type": "defend",
+            "power": 1
+          }
+        ],
+        "inactive": [
+          {
+            "name": "Throwing Knife",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Bandage",
+            "type": "heal",
+            "power": 1
+          }
         ]
       }
     },
@@ -801,11 +835,33 @@
       "location": "stables",
       "decks": {
         "active": [
-          "defend",
-          "heal",
-          "heal",
-          "defend",
-          "attack"
+          {
+            "name": "Holy Ward",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Healing Prayer",
+            "type": "heal",
+            "power": 1
+          },
+          {
+            "name": "Salve",
+            "type": "heal",
+            "power": 1
+          }
+        ],
+        "inactive": [
+          {
+            "name": "Blessed Shield",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Mace",
+            "type": "attack",
+            "power": 1
+          }
         ]
       }
     },
@@ -816,11 +872,33 @@
       "location": "stables",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "defend",
-          "sneak",
-          "heal"
+          {
+            "name": "Longbow",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Hunting Knife",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Dodge",
+            "type": "defend",
+            "power": 1
+          }
+        ],
+        "inactive": [
+          {
+            "name": "Camouflage",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Herb Poultice",
+            "type": "heal",
+            "power": 1
+          }
         ]
       }
     },
@@ -831,11 +909,33 @@
       "location": "stables",
       "decks": {
         "active": [
-          "attack",
-          "defend",
-          "heal",
-          "defend",
-          "attack"
+          {
+            "name": "Blessed Blade",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Tower Shield",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Lay on Hands",
+            "type": "heal",
+            "power": 1
+          }
+        ],
+        "inactive": [
+          {
+            "name": "Buckler",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Sword",
+            "type": "attack",
+            "power": 1
+          }
         ]
       }
     },
@@ -846,11 +946,33 @@
       "location": "stables",
       "decks": {
         "active": [
-          "sneak",
-          "attack",
-          "attack",
-          "defend",
-          "sneak"
+          {
+            "name": "Shadow Step",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Stiletto",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Throwing Dagger",
+            "type": "attack",
+            "power": 1
+          }
+        ],
+        "inactive": [
+          {
+            "name": "Parry",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Cloak",
+            "type": "sneak",
+            "power": 1
+          }
         ]
       }
     }
@@ -860,12 +982,24 @@
       "name": "Goblin Scout",
       "class": "goblin",
       "faction": "goblins",
-      "location": "caves",
+      "location": "mountain_pass",
       "decks": {
         "active": [
-          "attack",
-          "sneak",
-          "attack"
+          {
+            "name": "Rusty Axe",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Rusty Axe",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Big Helmet",
+            "type": "defend",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -873,7 +1007,45 @@
           "name": "Stolen Dagger",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "name": "Stolen Dagger",
+            "type": "attack",
+            "power": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Goblin Bruiser",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "forest",
+      "decks": {
+        "active": [
+          {
+            "name": "Rusty Axe ",
+            "type": "attack",
+            "power": 2
+          },
+          {
+            "name": "Big Helmet",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Rusty Axe",
+            "type": "attack",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Axe",
+          "type": "new_action",
+          "data": {
+            "name": "Axe Swing",
+            "type": "attack",
+            "power": 2
           }
         }
       ]
@@ -885,10 +1057,26 @@
       "location": "abandoned_mine",
       "decks": {
         "active": [
-          "heal",
-          "attack",
-          "defend",
-          "heal"
+          {
+            "name": "Spirit Mend",
+            "type": "heal",
+            "power": 1
+          },
+          {
+            "name": "Bone Club",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Fetish Ward",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Herb Chew",
+            "type": "heal",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -896,7 +1084,9 @@
           "name": "Healing Totem",
           "type": "new_action",
           "data": {
-            "card_type": "heal"
+            "name": "Healing Totem",
+            "type": "heal",
+            "power": 1
           }
         }
       ]
@@ -908,10 +1098,26 @@
       "location": "graveyard",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "defend",
-          "defend"
+          {
+            "name": "Rusted Sword",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Bone Claw",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Tattered Shield",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Rib Block",
+            "type": "defend",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -919,7 +1125,9 @@
           "name": "Ancient Shield",
           "type": "new_action",
           "data": {
-            "card_type": "defend"
+            "name": "Ancient Shield",
+            "type": "defend",
+            "power": 1
           }
         }
       ]
@@ -931,9 +1139,21 @@
       "location": "graveyard",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "attack"
+          {
+            "name": "Rotting Fist",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Bite",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Lunge",
+            "type": "attack",
+            "power": 1
+          }
         ]
       },
       "items": []
@@ -945,11 +1165,31 @@
       "location": "watchtower",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "defend",
-          "sneak",
-          "attack"
+          {
+            "name": "Cutlass",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Saber",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Leather Guard",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Vanish",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Dagger",
+            "type": "attack",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -957,8 +1197,8 @@
           "name": "Fine Blade",
           "type": "new_action",
           "data": {
-            "card_type": "attack",
             "name": "Fine Blade",
+            "type": "attack",
             "power": 2
           }
         }
@@ -971,17 +1211,31 @@
       "location": "farm",
       "decks": {
         "active": [
-          "attack",
-          "attack",
-          "defend"
+          {
+            "name": "Club",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Fist",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Arm Block",
+            "type": "defend",
+            "power": 1
+          }
         ]
       },
       "items": [
         {
-          "name": "Fine Blade",
+          "name": "Wolf Fang",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "name": "Wolf Fang",
+            "type": "attack",
+            "power": 2
           }
         }
       ]
@@ -990,11 +1244,14 @@
       "name": "Bandit",
       "class": "bandit",
       "faction": "bandits",
-      "location": "farm",
+      "location": "south_road",
       "decks": {
         "active": [
-          "attack",
-          "defend"
+          {
+            "name": "Shiv",
+            "type": "attack",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -1002,7 +1259,66 @@
           "name": "Dagger",
           "type": "new_action",
           "data": {
-            "card_type": "attack"
+            "name": "Dagger",
+            "type": "attack",
+            "power": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Goblin Scout",
+      "class": "goblin",
+      "faction": "goblins",
+      "location": "south_road",
+      "decks": {
+        "active": [
+          {
+            "name": "Shiv",
+            "type": "attack",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Dagger",
+          "type": "new_action",
+          "data": {
+            "name": "Dagger",
+            "type": "attack",
+            "power": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sneaky Bandit",
+      "class": "bandit",
+      "faction": "bandits",
+      "location": "illplaced",
+      "decks": {
+        "active": [
+          {
+            "name": "Fade",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Sharp Stick",
+            "type": "attack",
+            "power": 1
+          }
+        ]
+      },
+      "items": [
+        {
+          "name": "Ebony Blade",
+          "type": "new_action",
+          "data": {
+            "name": "Ebony Blade",
+            "type": "attack",
+            "power": 2
           }
         }
       ]

@@ -156,6 +156,12 @@ class Game extends \Bga\GameFramework\Table
             $this->getGameStateHelper()->set(STATE_BACKGROUND_IMAGE, $config['background_image']);
         }
 
+        // Store visibility settings (fog of war)
+        $entityVisibility = $config['entity_visibility'] ?? DEFAULT_ENTITY_VISIBILITY;
+        $locationVisibility = $config['location_visibility'] ?? DEFAULT_LOCATION_VISIBILITY;
+        $this->getGameStateHelper()->set(STATE_ENTITY_VISIBILITY, (string)$entityVisibility);
+        $this->getGameStateHelper()->set(STATE_LOCATION_VISIBILITY, (string)$locationVisibility);
+
         // Setup BGA players
         $sql = "INSERT INTO player (player_id, player_color, player_canal, player_name, player_avatar) VALUES ";
         $values = [];
@@ -213,17 +219,34 @@ class Game extends \Bga\GameFramework\Table
             $class = addslashes($characterConfig['class']);
             $faction = addslashes($characterConfig['faction'] ?? 'players');
             $location = addslashes($characterConfig['location']);
+            $level = (int)($characterConfig['level'] ?? 3); // Characters default to level 3
 
             // Create as 'character' type with no player_id - will be updated when selected
             $this->DbQuery(
-                "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, is_defeated) 
-                 VALUES ('character', NULL, '$name', '$class', '$faction', '$location', 0)"
+                "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, entity_level, is_defeated) 
+                 VALUES ('character', NULL, '$name', '$class', '$faction', '$location', $level, 0)"
             );
             $entityId = (int)$this->DbGetLastId();
 
             // Create deck from config
-            $deck->createDeck($entityId, $characterConfig['decks']['active']);
+            $deck->createDeck($entityId, $characterConfig['decks']['active'], 'active');
+            if (isset($characterConfig['decks']['inactive']) && !empty($characterConfig['decks']['inactive'])) {
+                $deck->createDeck($entityId, $characterConfig['decks']['inactive'], 'inactive');
+            }
             $deck->shuffleActive($entityId);
+
+            // Create items from config (if any)
+            if (isset($characterConfig['items']) && !empty($characterConfig['items'])) {
+                foreach ($characterConfig['items'] as $itemConfig) {
+                    $itemName = addslashes($itemConfig['name']);
+                    $itemType = addslashes($itemConfig['type']);
+                    $itemData = addslashes(json_encode($itemConfig['data'] ?? []));
+                    $this->DbQuery(
+                        "INSERT INTO item (entity_id, item_name, item_type, item_data) 
+                         VALUES ($entityId, '$itemName', '$itemType', '$itemData')"
+                    );
+                }
+            }
         }
 
         // Setup monster entities - create copies equal to player count
@@ -234,19 +257,24 @@ class Game extends \Bga\GameFramework\Table
             $location = addslashes($monsterConfig['location']);
 
             // Create one monster copy per player
+            $level = (int)($monsterConfig['level'] ?? 2); // Monsters default to level 2
+            
             for ($i = 0; $i < $playerCount; $i++) {
                 // Add number suffix if multiple copies
                 $displayName = $playerCount > 1 ? $name . ' ' . ($i + 1) : $name;
                 $displayName = addslashes($displayName);
 
                 $this->DbQuery(
-                    "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, is_defeated) 
-                     VALUES ('monster', NULL, '$displayName', '$class', '$faction', '$location', 0)"
+                    "INSERT INTO entity (entity_type, player_id, entity_name, entity_class, faction, location_id, entity_level, is_defeated) 
+                     VALUES ('monster', NULL, '$displayName', '$class', '$faction', '$location', $level, 0)"
                 );
                 $entityId = (int)$this->DbGetLastId();
 
                 // Create deck from config (copy the deck for each monster)
-                $deck->createDeck($entityId, $monsterConfig['decks']['active']);
+                $deck->createDeck($entityId, $monsterConfig['decks']['active'], 'active');
+                if (isset($monsterConfig['decks']['inactive']) && !empty($monsterConfig['decks']['inactive'])) {
+                    $deck->createDeck($entityId, $monsterConfig['decks']['inactive'], 'inactive');
+                }
                 $deck->shuffleActive($entityId);
 
                 // Create items from config (copy the items for each monster)
@@ -286,6 +314,7 @@ class Game extends \Bga\GameFramework\Table
     protected function getAllDatas(): array
     {
         $result = [];
+        $stateHelper = $this->getGameStateHelper();
 
         // Basic player info (including name for display)
         $result['players'] = $this->getCollectionFromDb(
@@ -293,17 +322,71 @@ class Game extends \Bga\GameFramework\Table
         );
 
         // Current round
-        $result['round'] = $this->getGameStateHelper()->getRound();
+        $result['round'] = $stateHelper->getRound();
 
-        // Map data
-        $result['map'] = $this->getGameStateHelper()->getMap();
+        // Get visibility settings
+        $entityVisibilityRaw = $stateHelper->get(STATE_ENTITY_VISIBILITY);
+        $locationVisibilityRaw = $stateHelper->get(STATE_LOCATION_VISIBILITY);
+        $entityVisibility = $entityVisibilityRaw !== null ? (int)$entityVisibilityRaw : DEFAULT_ENTITY_VISIBILITY;
+        $locationVisibility = $locationVisibilityRaw !== null ? (int)$locationVisibilityRaw : DEFAULT_LOCATION_VISIBILITY;
+        
+        // Debug visibility settings
+        $this->trace("Visibility settings - entity: $entityVisibility (raw: " . var_export($entityVisibilityRaw, true) . "), location: $locationVisibility (raw: " . var_export($locationVisibilityRaw, true) . ")");
+        
+        // Get current player's character location (for fog of war)
+        $currentPlayerId = $this->getCurrentPlayerId();
+        $myCharacter = $this->getObjectFromDB(
+            "SELECT location_id FROM entity WHERE player_id = '$currentPlayerId' AND entity_type = 'player'"
+        );
+        $myLocationId = $myCharacter ? $myCharacter['location_id'] : null;
+        
+        $this->trace("Fog of war - player: $currentPlayerId, location: " . ($myLocationId ?? 'null'));
+        
+        // Calculate visible locations
+        $visibleEntityLocations = [];
+        $visibleMapLocations = [];
+        
+        if ($myLocationId) {
+            $visibleEntityLocations = $stateHelper->getLocationsWithinRange($myLocationId, $entityVisibility);
+            $visibleMapLocations = $stateHelper->getLocationsWithinRange($myLocationId, $locationVisibility);
+            $this->trace("Visible entity locations: " . json_encode($visibleEntityLocations));
+            $this->trace("Visible map locations: " . json_encode($visibleMapLocations));
+        }
 
-        // All entities with their deck counts and items
-        $entities = $this->getGameStateHelper()->getAllEntities();
+        // Map data - filter by location visibility
+        $fullMap = $stateHelper->getMap();
+        if ($locationVisibility === 0 || !$myLocationId) {
+            // No fog for locations - show all
+            $result['map'] = $fullMap;
+        } else {
+            // Filter locations to only visible ones
+            $result['map'] = [
+                'locations' => array_values(array_filter($fullMap['locations'], function($loc) use ($visibleMapLocations) {
+                    return in_array($loc['location_id'], $visibleMapLocations);
+                })),
+                'connections' => array_values(array_filter($fullMap['connections'], function($conn) use ($visibleMapLocations) {
+                    // Show connection if either endpoint is visible
+                    return in_array($conn['location_from'], $visibleMapLocations) || 
+                           in_array($conn['location_to'], $visibleMapLocations);
+                })),
+            ];
+        }
+
+        // All entities with their deck counts and items - filter by entity visibility
+        $entities = $stateHelper->getAllEntities();
         $deck = $this->getDeck();
 
+        $filteredEntities = [];
         foreach ($entities as &$entity) {
             $entityId = (int)$entity['entity_id'];
+            
+            // Check visibility (0 means no fog, or entity is in visible range)
+            $isVisible = $entityVisibility === 0 || 
+                         !$myLocationId || 
+                         in_array($entity['location_id'], $visibleEntityLocations);
+            
+            if (!$isVisible) continue;
+            
             $entity['deck_counts'] = $deck->getPileCounts($entityId);
             
             // Get items for this entity
@@ -314,8 +397,10 @@ class Game extends \Bga\GameFramework\Table
             foreach ($entity['items'] as &$item) {
                 $item['item_data'] = json_decode($item['item_data'], true) ?? [];
             }
+            
+            $filteredEntities[] = $entity;
         }
-        $result['entities'] = $entities;
+        $result['entities'] = $filteredEntities;
 
         // Current move choices (if in move selection phase)
         $result['move_choices'] = $this->getCollectionFromDb(
@@ -323,10 +408,14 @@ class Game extends \Bga\GameFramework\Table
         );
 
         // Victory condition
-        $result['victory'] = $this->getGameStateHelper()->getVictoryCondition();
+        $result['victory'] = $stateHelper->getVictoryCondition();
 
         // Background image for the map (if any)
-        $result['background_image'] = $this->getGameStateHelper()->get(STATE_BACKGROUND_IMAGE);
+        $result['background_image'] = $stateHelper->get(STATE_BACKGROUND_IMAGE);
+
+        // Visibility settings (for client display)
+        $result['entity_visibility'] = $entityVisibility;
+        $result['location_visibility'] = $locationVisibility;
 
         // Individual goals (each player only sees their own)
         $result['player_goals'] = [];

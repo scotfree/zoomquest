@@ -26,4 +26,19 @@ require_once(__DIR__ . '/modules/php/Helpers/Deck.php');
 require_once(__DIR__ . '/modules/php/Helpers/ActionSequenceResolver.php');
 require_once(__DIR__ . '/modules/php/Helpers/GameStateHelper.php');
 require_once(__DIR__ . '/modules/php/Helpers/GoalTracker.php');
+require_once(__DIR__ . '/modules/php/Helpers/MarkerHelper.php');
+require_once(__DIR__ . '/modules/php/Helpers/LocationLog.php');
+
+// Load state classes (required for #[PossibleAction] discovery)
+require_once(__DIR__ . '/modules/php/States/CharacterSelection.php');
+require_once(__DIR__ . '/modules/php/States/CheckVictory.php');
+require_once(__DIR__ . '/modules/php/States/MoveSelection.php');
+require_once(__DIR__ . '/modules/php/States/PlayerTurn.php');
+require_once(__DIR__ . '/modules/php/States/ResolveMoves.php');
+require_once(__DIR__ . '/modules/php/States/RoundStart.php');
+require_once(__DIR__ . '/modules/php/States/SequenceCleanup.php');
+require_once(__DIR__ . '/modules/php/States/SequenceDrawCards.php');
+require_once(__DIR__ . '/modules/php/States/SequenceResolve.php');
+require_once(__DIR__ . '/modules/php/States/SequenceRoundEnd.php');
+require_once(__DIR__ . '/modules/php/States/SequenceSetup.php');
 

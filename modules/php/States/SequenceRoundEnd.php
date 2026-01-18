@@ -37,14 +37,19 @@ class SequenceRoundEnd extends GameState
         $sequenceId = (int)$stateHelper->get(STATE_CURRENT_SEQUENCE);
         $sequenceRound = (int)$stateHelper->get(STATE_SEQUENCE_ROUND);
 
+        $this->game->trace("=== SEQUENCE ROUND END (Round $sequenceRound) ===");
+
         // Get resolutions from this round
         $resolutionsJson = $stateHelper->get(STATE_ROUND_RESOLUTIONS);
         $resolutions = $resolutionsJson ? json_decode($resolutionsJson, true) : [];
+
+        $this->game->trace("Resolutions this round: " . count($resolutions));
 
         // Note: Poison damage now happens at end of action sequence, not each round
 
         // Get participant status
         $status = $sequenceResolver->getParticipantStatus($sequenceId);
+        $this->game->trace("Participant status: " . json_encode($status));
 
         // Build readable log message
         $logParts = [];
@@ -76,7 +81,10 @@ class SequenceRoundEnd extends GameState
         $eliminatedFaction = $sequenceResolver->getEliminatedFaction($sequenceId);
         $gameRound = $stateHelper->getRound();
 
+        $this->game->trace("Eliminated faction check: " . ($eliminatedFaction ?? 'none'));
+
         if ($eliminatedFaction !== null) {
+            $this->game->trace(">>> ENDING: Faction eliminated - $eliminatedFaction");
             // Build status summary
             $statusLog = $this->formatStatusSummary($status);
             
@@ -93,7 +101,11 @@ class SequenceRoundEnd extends GameState
         }
 
         // Check if everyone is out of cards (standoff)
-        if ($sequenceResolver->isEveryoneOutOfCards($sequenceId)) {
+        $everyoneOut = $sequenceResolver->isEveryoneOutOfCards($sequenceId);
+        $this->game->trace("Everyone out of cards check: " . ($everyoneOut ? 'true' : 'false'));
+        
+        if ($everyoneOut) {
+            $this->game->trace(">>> ENDING: Everyone out of cards (standoff)");
             // Build status summary
             $statusLog = $this->formatStatusSummary($status);
             
@@ -108,6 +120,20 @@ class SequenceRoundEnd extends GameState
         }
 
         // Sequence continues
+        $this->game->trace(">>> CONTINUING to next round");
+
+        // Decrement all markers at this location before next round
+        $sequence = $this->game->getObjectFromDB(
+            "SELECT location_id FROM action_sequence WHERE sequence_id = $sequenceId"
+        );
+        if ($sequence) {
+            $markers = $this->game->getMarkerHelper();
+            $expiredMarkers = $markers->decrementAllMarkersAtLocation($sequence['location_id']);
+            if (!empty($expiredMarkers)) {
+                $this->game->trace("Expired markers: " . json_encode($expiredMarkers));
+            }
+        }
+        
         $this->notify->all('sequenceContinues', '', [
             'sequence_id' => $sequenceId,
         ]);
@@ -228,6 +254,9 @@ class SequenceRoundEnd extends GameState
             case 'no_target':
             case 'target_defeated':
                 return "$entity played $cardName but had no valid target.";
+
+            case 'target_hidden':
+                return "$entity played $cardName but $target is hidden!";
 
             default:
                 return "$entity played $cardName.";

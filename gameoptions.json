@@ -4,7 +4,7 @@
         "name": "Scenario",
         "values": {
             "1": {
-                "name": "Test Scenario",
+                "name": "Cleaning The Stables (Tutorial)",
                 "description": "A simple 5-node test map for learning the game"
             },
             "2": {

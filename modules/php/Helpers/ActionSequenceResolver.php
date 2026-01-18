@@ -10,26 +10,25 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
  * Handles action sequence resolution using the marker-based combat system
  * 
  * Each round:
- * 1. All entities draw cards simultaneously
- * 2. Place markers based on card type and power:
- *    - Watch markers on self (persist, cancel sneak)
- *    - Sneak markers on self (persist, hidden + bonus to attack/defend)
- *    - Mark markers on target (bonus to attacks)
- *    - Attack markers on target (damage at end of round)
- *    - Defend markers on target (cancel attack markers)
- *    - Poison markers on target (damage at end of sequence)
- *    - Heal markers on self (remove poison, restore cards)
- *    - Shuffle markers on self (move cards from discard)
- *    - Sell/Wealth/Steal for commerce
- * 3. Resolve:
- *    - Watch cancels Sneak (1:1, both consumed)
- *    - Attack vs Defend (1:1, defend carries over)
- *    - Remaining attack = damage
- *    - Heal removes poison first, then restores cards
- *    - Shuffle moves cards from discard to active
- *    - Sell/Wealth/Steal for item transfers
- * 4. End of round: clear attack markers
- * 5. End of sequence: apply poison damage, clear non-persistent markers
+ * 1. All entities draw cards simultaneously (targets NOT determined yet)
+ * 2. Place markers in order (targets determined at resolution time):
+ *    a) Watch markers on self (persist, cancel sneak)
+ *    b) Watch cancels existing Sneak (1:1, both consumed)
+ *    c) Sneak markers on self (persist, MAKES ENTITY HIDDEN)
+ *    d) Mark markers on target (targets hostile, excludes hidden)
+ *    e) Attack markers on target (targets hostile, EXCLUDES HIDDEN)
+ *    f) Defend markers on target (targets friendly, includes hidden allies)
+ *    g) Combat resolution: Attack vs Defend, deal damage
+ *    h) Poison markers on target (targets hostile, excludes hidden)
+ *    i) Heal on target (targets friendly, includes hidden allies)
+ *    j) Shuffle, Sell/Wealth/Steal
+ * 3. End of round: clear attack markers
+ * 4. End of sequence: apply poison damage, clear non-persistent markers
+ * 
+ * KEY: Hidden entities (those with sneak markers) cannot be targeted by hostile
+ * actions (attack, mark, poison). They CAN be targeted by friendly actions
+ * (defend, heal). Sneak resolves BEFORE attack targeting, so playing sneak
+ * protects you in the same round.
  */
 class ActionSequenceResolver
 {
@@ -226,7 +225,7 @@ class ActionSequenceResolver
     }
 
     /**
-     * Draw cards for all participants and determine targets
+     * Draw cards for all participants (targets determined at resolution time)
      */
     public function drawCardsForSequence(int $sequenceId, int $currentRound): array
     {
@@ -248,23 +247,15 @@ class ActionSequenceResolver
                 $cardPower = (int)($card['card_power'] ?? 1);
                 $cardName = $card['card_name'] ?? ucfirst($cardType);
 
-                $targetId = $this->determineTarget($sequenceId, $entityId, $cardType);
-
+                // Don't determine target yet - will be done at resolution time
+                // This allows sneak/watch to affect targeting
                 $this->game->DbQuery(
                     "UPDATE sequence_participant 
                      SET drawn_card_id = $cardId, 
-                         target_entity_id = " . ($targetId !== null ? $targetId : "NULL") . ",
+                         target_entity_id = NULL,
                          is_resolved = 0 
                      WHERE sequence_id = $sequenceId AND entity_id = $entityId"
                 );
-
-                $targetName = null;
-                if ($targetId !== null) {
-                    $target = $this->game->getObjectFromDB(
-                        "SELECT entity_name FROM entity WHERE entity_id = $targetId"
-                    );
-                    $targetName = $target ? $target['entity_name'] : null;
-                }
 
                 $this->trackGoalForEntity($entityId, TRACK_CARD_PLAYS, $cardType);
 
@@ -277,8 +268,8 @@ class ActionSequenceResolver
                     'card_name' => $cardName,
                     'card_type' => $cardType,
                     'card_power' => $cardPower,
-                    'target_id' => $targetId,
-                    'target_name' => $targetName,
+                    'target_id' => null,  // Determined at resolution
+                    'target_name' => null,
                 ];
             }
         }
@@ -308,6 +299,7 @@ class ActionSequenceResolver
                 return $target ? (int)$target['entity_id'] : null;
 
             case CARD_WEALTH:
+            case CARD_BUY:
                 $target = $this->getSellingEntity($sequenceId, $entityId);
                 return $target ? (int)$target['entity_id'] : null;
 
@@ -354,10 +346,29 @@ class ActionSequenceResolver
     }
 
     /**
-     * Find an entity that is selling (has sell markers)
+     * Find an entity that is selling (has drawn a sell card OR has sell markers)
+     * Checks both drawn cards (for targeting before resolution) and markers (during resolution)
      */
     private function getSellingEntity(int $sequenceId, int $actorEntityId): ?array
     {
+        // First check: entities that have drawn a sell card this round (for pre-resolution targeting)
+        $sellerWithCard = $this->game->getObjectFromDB(
+            "SELECT e.entity_id, e.entity_name, e.faction
+             FROM sequence_participant sp
+             JOIN entity e ON sp.entity_id = e.entity_id
+             JOIN card c ON sp.drawn_card_id = c.card_id
+             WHERE sp.sequence_id = $sequenceId 
+               AND e.is_defeated = 0 
+               AND e.entity_id != $actorEntityId
+               AND c.card_type = '" . CARD_SELL . "'
+             LIMIT 1"
+        );
+        
+        if ($sellerWithCard) {
+            return $sellerWithCard;
+        }
+
+        // Second check: entities with sell markers (for during-resolution targeting)
         $participants = $this->game->getObjectListFromDB(
             "SELECT e.entity_id, e.entity_name, e.faction
              FROM sequence_participant sp
@@ -430,23 +441,25 @@ class ActionSequenceResolver
         // Phase 4: Place Mark markers on targets
         foreach ($cards as $card) {
             if ($card['card_type'] === CARD_MARK) {
-                $result = $this->placeMarkMarkers($card);
+                $result = $this->placeMarkMarkers($card, $sequenceId);
                 $results[] = $result;
             }
         }
 
         // Phase 5: Place Attack markers (including sneak bonus)
+        // Target determined NOW (after sneak resolved) - hidden enemies excluded
         foreach ($cards as $card) {
             if ($card['card_type'] === CARD_ATTACK) {
-                $result = $this->placeAttackMarkers($card);
+                $result = $this->placeAttackMarkers($card, $sequenceId);
                 $results[] = $result;
             }
         }
 
         // Phase 6: Place Defend markers
+        // Target determined NOW - can defend hidden allies
         foreach ($cards as $card) {
             if ($card['card_type'] === CARD_DEFEND) {
-                $result = $this->placeDefendMarkers($card);
+                $result = $this->placeDefendMarkers($card, $sequenceId);
                 $results[] = $result;
             }
         }
@@ -458,17 +471,19 @@ class ActionSequenceResolver
         }
 
         // Phase 8: Place Poison markers
+        // Target determined NOW - hidden enemies excluded
         foreach ($cards as $card) {
             if ($card['card_type'] === CARD_POISON) {
-                $result = $this->placePoisonMarkers($card);
+                $result = $this->placePoisonMarkers($card, $sequenceId);
                 $results[] = $result;
             }
         }
 
         // Phase 9: Place and resolve Heal markers
+        // Target determined NOW - can heal hidden allies
         foreach ($cards as $card) {
             if ($card['card_type'] === CARD_HEAL) {
-                $result = $this->resolveHeal($card);
+                $result = $this->resolveHeal($card, $sequenceId);
                 $results[] = $result;
             }
         }
@@ -489,9 +504,9 @@ class ActionSequenceResolver
             }
         }
 
-        // Phase 12: Resolve Wealth (purchase)
+        // Phase 12: Resolve Wealth/Buy (purchase)
         foreach ($cards as $card) {
-            if ($card['card_type'] === CARD_WEALTH) {
+            if ($card['card_type'] === CARD_WEALTH || $card['card_type'] === CARD_BUY) {
                 $result = $this->resolveWealth($sequenceId, $card);
                 $results[] = $result;
             }
@@ -563,11 +578,18 @@ class ActionSequenceResolver
     /**
      * Place mark markers on target
      */
-    private function placeMarkMarkers(array $card): array
+    /**
+     * Place mark markers on target
+     * Target is determined at resolution time (excludes hidden entities)
+     */
+    private function placeMarkMarkers(array $card, int $sequenceId): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : null;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW (excludes hidden entities)
+        $targetData = $this->getLowestHealthTarget($sequenceId, $entityId, RELATION_HOSTILE, false);
+        $targetId = $targetData ? (int)$targetData['entity_id'] : null;
 
         $result = [
             'entity_id' => $entityId,
@@ -600,12 +622,17 @@ class ActionSequenceResolver
 
     /**
      * Place attack markers on target (includes sneak bonus)
+     * Target is determined at resolution time (excludes hidden entities)
      */
-    private function placeAttackMarkers(array $card): array
+    private function placeAttackMarkers(array $card, int $sequenceId): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : null;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW (at resolution time, after sneak has resolved)
+        // This excludes hidden entities from targeting
+        $targetData = $this->getLowestHealthTarget($sequenceId, $entityId, RELATION_HOSTILE, false);
+        $targetId = $targetData ? (int)$targetData['entity_id'] : null;
 
         $result = [
             'entity_id' => $entityId,
@@ -634,7 +661,7 @@ class ActionSequenceResolver
             $result['sneak_bonus'] = $sneakBonus;
         }
 
-        // Check target still valid
+        // Check target still valid (could have been defeated by earlier attack this round)
         $target = $this->game->getObjectFromDB(
             "SELECT entity_name, is_defeated FROM entity WHERE entity_id = $targetId"
         );
@@ -663,11 +690,18 @@ class ActionSequenceResolver
     /**
      * Place defend markers on target (includes sneak bonus)
      */
-    private function placeDefendMarkers(array $card): array
+    /**
+     * Place defend markers on target (includes sneak bonus)
+     * Target is determined at resolution time (CAN defend hidden allies)
+     */
+    private function placeDefendMarkers(array $card, int $sequenceId): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : $entityId;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW - defend targets friendlies (can include hidden allies)
+        $targetData = $this->getLowestHealthTarget($sequenceId, $entityId, RELATION_FRIENDLY, true);
+        $targetId = $targetData ? (int)$targetData['entity_id'] : $entityId; // Default to self
 
         $result = [
             'entity_id' => $entityId,
@@ -801,11 +835,18 @@ class ActionSequenceResolver
     /**
      * Place poison markers on target
      */
-    private function placePoisonMarkers(array $card): array
+    /**
+     * Place poison markers on target
+     * Target is determined at resolution time (excludes hidden entities)
+     */
+    private function placePoisonMarkers(array $card, int $sequenceId): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : null;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW (excludes hidden entities)
+        $targetData = $this->getLowestHealthTarget($sequenceId, $entityId, RELATION_HOSTILE, false);
+        $targetId = $targetData ? (int)$targetData['entity_id'] : null;
 
         $result = [
             'entity_id' => $entityId,
@@ -839,11 +880,18 @@ class ActionSequenceResolver
     /**
      * Resolve heal card
      */
-    private function resolveHeal(array $card): array
+    /**
+     * Resolve heal card
+     * Target is determined at resolution time (CAN heal hidden allies)
+     */
+    private function resolveHeal(array $card, int $sequenceId): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : $entityId;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW - heal targets friendlies (can include hidden allies)
+        $targetData = $this->getLowestHealthTarget($sequenceId, $entityId, RELATION_FRIENDLY, true);
+        $targetId = $targetData ? (int)$targetData['entity_id'] : $entityId; // Default to self
 
         $result = [
             'entity_id' => $entityId,
@@ -931,19 +979,22 @@ class ActionSequenceResolver
     }
 
     /**
-     * Resolve wealth card (purchase from seller)
+     * Resolve wealth/buy card (purchase from seller)
      */
     private function resolveWealth(int $sequenceId, array $card): array
     {
         $entityId = (int)$card['entity_id'];
-        $targetId = $card['target_entity_id'] ? (int)$card['target_entity_id'] : null;
         $power = (int)($card['card_power'] ?? 1);
+
+        // Determine target NOW (at resolution time, after sell markers are placed)
+        $sellerData = $this->getSellingEntity($sequenceId, $entityId);
+        $targetId = $sellerData ? (int)$sellerData['entity_id'] : null;
 
         $result = [
             'entity_id' => $entityId,
             'entity_name' => $card['entity_name'],
             'card_name' => $card['card_name'],
-            'card_type' => CARD_WEALTH,
+            'card_type' => $card['card_type'], // Preserve original type (wealth or buy)
             'card_power' => $power,
             'target_id' => $targetId,
             'effect' => 'no_seller',

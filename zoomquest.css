@@ -19,6 +19,7 @@
 :root {
     /* Medieval fantasy palette */
     --zq-bg-dark: #1a1a2e;
+    --zq-bg-darker: #0f0f1a;
     --zq-bg-medium: #16213e;
     --zq-bg-light: #0f3460;
     --zq-accent-gold: #d4af37;
@@ -315,6 +316,57 @@
     stroke-linecap: round;
     stroke-dasharray: 8, 6;
     opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.zq-connection-adjacent {
+    stroke: var(--zq-accent-green);
+    stroke-width: 6;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 4px rgba(76, 175, 80, 0.6));
+    animation: pulse-connection 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-connection {
+    0%, 100% {
+        stroke-width: 6;
+        opacity: 0.8;
+        filter: drop-shadow(0 0 4px rgba(76, 175, 80, 0.6));
+    }
+    50% {
+        stroke-width: 8;
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.9));
+    }
+}
+
+.zq-connection-label {
+    fill: rgba(0, 0, 0, 0.6);
+    font-size: 11px;
+    font-family: 'Crimson Pro', Georgia, serif;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+.zq-connection-label-adjacent {
+    fill: var(--zq-accent-green);
+    font-size: 13px;
+    font-weight: 700;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    animation: pulse-label 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-label {
+    0%, 100% {
+        font-size: 13px;
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    }
+    50% {
+        font-size: 14px;
+        filter: drop-shadow(0 0 4px rgba(76, 175, 80, 0.6));
+    }
 }
 
 #zq-nodes-container {
@@ -399,7 +451,61 @@
 
 .zq-node.zq-node-adjacent {
     border-color: var(--zq-accent-green);
-    animation: pulse-green 2s infinite;
+    border-width: 4px;
+    transform: scale(1.08);
+    z-index: 40;
+    animation: pulse-adjacent 1.5s ease-in-out infinite;
+    box-shadow: 
+        0 0 20px rgba(76, 175, 80, 0.7),
+        0 0 40px rgba(76, 175, 80, 0.4),
+        0 0 60px rgba(76, 175, 80, 0.2),
+        inset 0 0 15px rgba(76, 175, 80, 0.15);
+    background: 
+        radial-gradient(circle at center, rgba(76, 175, 80, 0.12) 0%, transparent 70%),
+        var(--zq-node-bg);
+}
+
+.zq-node.zq-node-adjacent::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+    border: 2px solid rgba(76, 175, 80, 0.35);
+    animation: ring-pulse-green 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse-adjacent {
+    0%, 100% {
+        transform: scale(1.08);
+        box-shadow: 
+            0 0 20px rgba(76, 175, 80, 0.7),
+            0 0 40px rgba(76, 175, 80, 0.4),
+            0 0 60px rgba(76, 175, 80, 0.2),
+            inset 0 0 15px rgba(76, 175, 80, 0.15);
+    }
+    50% {
+        transform: scale(1.12);
+        box-shadow: 
+            0 0 25px rgba(76, 175, 80, 0.85),
+            0 0 50px rgba(76, 175, 80, 0.5),
+            0 0 80px rgba(76, 175, 80, 0.3),
+            inset 0 0 20px rgba(76, 175, 80, 0.2);
+    }
+}
+
+@keyframes ring-pulse-green {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.08);
+        opacity: 0.8;
+    }
 }
 
 .zq-node.zq-node-selected {
@@ -460,10 +566,7 @@
     }
 }
 
-@keyframes pulse-green {
-    0%, 100% { box-shadow: 0 0 8px rgba(34, 139, 34, 0.5); }
-    50% { box-shadow: 0 0 20px rgba(34, 139, 34, 0.8); }
-}
+/* pulse-green replaced by pulse-adjacent for better effect */
 
 .zq-node-name {
     font-size: 0.85em;
@@ -510,6 +613,15 @@
 
 @keyframes popupFadeIn {
     from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.zq-popup-above {
+    animation: popupFadeInAbove 0.2s ease;
+}
+
+@keyframes popupFadeInAbove {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
@@ -1179,6 +1291,12 @@
     font-size: 0.85em;
 }
 
+.zq-deck-card-item .zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.75em;
+    text-transform: capitalize;
+}
+
 /* Read-only deck display (action panel) */
 .zq-deck-info {
     display: grid;
@@ -1223,6 +1341,12 @@
 .zq-deck-card-readonly .zq-card-power {
     color: var(--zq-accent-gold);
     font-size: 0.8em;
+}
+
+.zq-deck-card-readonly .zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.7em;
+    text-transform: capitalize;
 }
 
 /* Enhanced Plan Popup */
@@ -1313,9 +1437,21 @@
     color: var(--zq-text-primary);
 }
 
+.zq-plan-card-item .zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.8em;
+}
+
 .zq-plan-card-item .zq-card-power {
     color: var(--zq-accent-gold);
     font-weight: bold;
+}
+
+/* Card meta display - type and power */
+.zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.75em;
+    text-transform: capitalize;
 }
 
 /* Level up selection mode */
@@ -1887,6 +2023,54 @@
     font-size: 0.9em;
 }
 
+.zq-char-preview-class {
+    color: var(--zq-accent-gold) !important;
+    font-weight: bold;
+    margin-bottom: 8px !important;
+}
+
+/* Character preview popup - ensure solid opaque background */
+.zq-char-preview-popup {
+    background: #1a1a2e !important;
+    background: linear-gradient(145deg, #1a1a2e, #0f0f1a) !important;
+}
+
+.zq-preview-card-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.zq-preview-card-item:hover {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    border-color: var(--zq-accent-gold);
+}
+
+.zq-preview-card-item .zq-card-icon {
+    font-size: 1.3em;
+}
+
+.zq-preview-card-item .zq-card-name {
+    flex: 1;
+    color: var(--zq-text-primary);
+}
+
+.zq-preview-card-item .zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.8em;
+}
+
+.zq-preview-card-item .zq-card-power {
+    color: var(--zq-accent-gold);
+    font-weight: bold;
+}
+
 .zq-plan-cards {
     display: flex;
     flex-direction: column;
@@ -1930,6 +2114,18 @@
     flex: 1;
     font-size: 1.1em;
     color: var(--zq-text-primary);
+    text-transform: capitalize;
+}
+
+.zq-plan-card-name {
+    flex: 1;
+    font-size: 1.1em;
+    color: var(--zq-text-primary);
+}
+
+.zq-plan-card .zq-card-meta {
+    color: var(--zq-text-muted);
+    font-size: 0.8em;
     text-transform: capitalize;
 }
 

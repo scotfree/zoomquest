@@ -150,6 +150,9 @@ class SequenceResolve extends GameState
             case 'target_defeated':
                 return "{$name} plays {$cardName} but has no valid target";
 
+            case 'target_hidden':
+                return "{$name} plays {$cardName} but {$target} is hidden!";
+
             default:
                 if (isset($r['card_name'])) {
                     return "{$name} plays {$cardName}";

@@ -17,7 +17,7 @@ $gameinfos = [
     'publisher' => '',
     'publisher_website' => '',
     'publisher_bgg_id' => 0,
-    'bgg_id' => 0,
+    'bgg_id' => 2389,
 
     'players' => [1, 2, 3, 4, 5],
     'suggest_player_number' => 2,

@@ -48,7 +48,7 @@ class CharacterSelection extends GameState
     {
         // Get all unassigned characters (player_id IS NULL, entity_type = 'character')
         $availableCharacters = $this->game->getObjectListFromDB(
-            "SELECT entity_id, entity_name, entity_class, location_id, faction 
+            "SELECT entity_id, entity_name, entity_class, location_id, faction, entity_level 
              FROM entity 
              WHERE entity_type = 'character' AND player_id IS NULL AND is_defeated = 0"
         );
@@ -64,8 +64,14 @@ class CharacterSelection extends GameState
         // Get deck info for each available character
         $deck = $this->game->getDeck();
         foreach ($availableCharacters as &$char) {
-            $cards = $deck->getActiveCards((int)$char['entity_id']);
-            $char['deck'] = array_column($cards, 'card_type');
+            $activeCards = $deck->getActiveCards((int)$char['entity_id']);
+            $inactiveCards = $deck->getInactiveCards((int)$char['entity_id']);
+            
+            // Return full card info for deck planning
+            $char['active_cards'] = $activeCards;
+            $char['inactive_cards'] = $inactiveCards;
+            // Legacy: simple type array for display
+            $char['deck'] = array_column($activeCards, 'card_type');
             
             // Get location name
             $locInfo = $this->game->getObjectFromDB(
@@ -84,7 +90,7 @@ class CharacterSelection extends GameState
      * Player action: Select a character
      */
     #[PossibleAction]
-    function actSelectCharacter(int $characterId, int $activePlayerId, array $args)
+    function actSelectCharacter(int $characterId, string $deckArrangement, int $activePlayerId, array $args)
     {
         $playerId = (int)$this->game->getCurrentPlayerId();
         
@@ -110,6 +116,22 @@ class CharacterSelection extends GameState
             "UPDATE entity SET player_id = '$playerId', entity_type = 'player' 
              WHERE entity_id = $characterId"
         );
+
+        // Apply deck arrangement if provided
+        if (!empty($deckArrangement)) {
+            $deckData = json_decode($deckArrangement, true);
+            if (is_array($deckData) && isset($deckData['activeCards']) && isset($deckData['inactiveCards'])) {
+                $activeCardIds = array_map('intval', $deckData['activeCards']);
+                $inactiveCardIds = array_map('intval', $deckData['inactiveCards']);
+                
+                $deck = $this->game->getDeck();
+                // Get the character's actual level from database
+                $entityLevel = (int)$this->game->getUniqueValueFromDB(
+                    "SELECT entity_level FROM entity WHERE entity_id = $characterId"
+                );
+                $deck->applyPlanChanges($characterId, $activeCardIds, $inactiveCardIds, $entityLevel);
+            }
+        }
 
         // Notify all players
         $this->notify->all('characterSelected', clienttranslate('${player_name} chooses ${character_name} (${character_class})'), [
@@ -154,10 +176,25 @@ class CharacterSelection extends GameState
      */
     function onAllPlayersNonMultiactive(): string
     {
-        // Clean up any unselected characters (remove them from the game)
-        $this->game->DbQuery(
-            "DELETE FROM entity WHERE entity_type = 'character' AND player_id IS NULL"
+        // Get IDs of unchosen characters before deleting
+        $unchosenIds = $this->game->getObjectListFromDB(
+            "SELECT entity_id FROM entity WHERE entity_type = 'character' AND player_id IS NULL"
         );
+
+        if (!empty($unchosenIds)) {
+            $idList = implode(',', array_column($unchosenIds, 'entity_id'));
+            
+            // Delete related records first (cards, items, markers, tags)
+            $this->game->DbQuery("DELETE FROM card WHERE entity_id IN ($idList)");
+            $this->game->DbQuery("DELETE FROM item WHERE entity_id IN ($idList)");
+            $this->game->DbQuery("DELETE FROM entity_marker WHERE entity_id IN ($idList)");
+            $this->game->DbQuery("DELETE FROM entity_tag WHERE entity_id IN ($idList)");
+            
+            // Then delete the entities themselves
+            $this->game->DbQuery("DELETE FROM entity WHERE entity_id IN ($idList)");
+            
+            $this->game->trace("Removed " . count($unchosenIds) . " unchosen character(s)");
+        }
 
         return RoundStart::class;
     }

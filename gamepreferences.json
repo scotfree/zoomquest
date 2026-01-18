@@ -4,11 +4,12 @@
         "name": "Animation Speed",
         "needReload": false,
         "values": {
+            "0": { "name": "Instant" },
             "1": { "name": "Fast" },
             "2": { "name": "Normal" },
             "3": { "name": "Slow" }
         },
-        "default": 2
+        "default": 0
     },
     "101": {
         "name": "Sound Effects",

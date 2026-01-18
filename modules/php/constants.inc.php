@@ -30,6 +30,7 @@ const CARD_MARK = 'mark';
 const CARD_SELL = 'sell';
 const CARD_STEAL = 'steal';
 const CARD_WEALTH = 'wealth';
+const CARD_BUY = 'buy';
 
 /*
  * Marker types (for the new marker-based combat system)
@@ -121,5 +122,15 @@ const TRACK_CARD_PLAYS = 'card_plays';
  */
 const STATE_INDIVIDUAL_GOALS = 'individual_goals';
 const STATE_BACKGROUND_IMAGE = 'background_image';
+
+/*
+ * Fog of war / visibility settings
+ * entity_visibility: how far entities are visible (0=all, 1=same location, 2=+neighbors, etc)
+ * location_visibility: how far locations are visible (0=all, 1=same location, 2=+neighbors, etc)
+ */
+const STATE_ENTITY_VISIBILITY = 'entity_visibility';
+const STATE_LOCATION_VISIBILITY = 'location_visibility';
+const DEFAULT_ENTITY_VISIBILITY = 2;
+const DEFAULT_LOCATION_VISIBILITY = 2;
 
 ?>

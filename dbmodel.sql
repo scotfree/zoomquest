@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `card` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `entity_id` int(10) unsigned NOT NULL,
   `card_name` varchar(64) NOT NULL DEFAULT '',
-  `card_type` enum('attack','defend','heal','sneak','watch','shuffle','poison','mark','sell','steal','wealth') NOT NULL,
+  `card_type` enum('attack','defend','heal','sneak','watch','shuffle','poison','mark','sell','steal','wealth','buy') NOT NULL,
   `card_power` int(10) unsigned NOT NULL DEFAULT 1,
   `card_pile` enum('active','discard','inactive') NOT NULL DEFAULT 'active',
   `card_order` int(10) unsigned NOT NULL DEFAULT 0,

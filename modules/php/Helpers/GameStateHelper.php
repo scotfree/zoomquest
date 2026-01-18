@@ -186,6 +186,73 @@ class GameStateHelper
     }
 
     /**
+     * Calculate distance between two locations using BFS
+     * @param string $fromId Starting location
+     * @param string $toId Target location
+     * @return int Distance (0 if same location, -1 if unreachable)
+     */
+    public function getLocationDistance(string $fromId, string $toId): int
+    {
+        if ($fromId === $toId) return 0;
+        
+        $visited = [$fromId => true];
+        $queue = [['id' => $fromId, 'distance' => 0]];
+        
+        while (!empty($queue)) {
+            $current = array_shift($queue);
+            $adjacent = $this->getAdjacentLocations($current['id']);
+            
+            foreach ($adjacent as $adj) {
+                $adjId = $adj['location_id'];
+                if ($adjId === $toId) {
+                    return $current['distance'] + 1;
+                }
+                if (!isset($visited[$adjId])) {
+                    $visited[$adjId] = true;
+                    $queue[] = ['id' => $adjId, 'distance' => $current['distance'] + 1];
+                }
+            }
+        }
+        
+        return -1; // Unreachable
+    }
+
+    /**
+     * Get all location IDs within a certain distance from a starting location
+     * @param string $fromId Starting location
+     * @param int $maxDistance Maximum distance (0 = unlimited)
+     * @return array Location IDs within range
+     */
+    public function getLocationsWithinRange(string $fromId, int $maxDistance): array
+    {
+        if ($maxDistance === 0) {
+            // Return all locations
+            $allLocs = $this->game->getObjectListFromDB("SELECT location_id FROM location");
+            return array_column($allLocs, 'location_id');
+        }
+        
+        $visited = [$fromId => 0];
+        $queue = [['id' => $fromId, 'distance' => 0]];
+        
+        while (!empty($queue)) {
+            $current = array_shift($queue);
+            if ($current['distance'] >= $maxDistance) continue;
+            
+            $adjacent = $this->getAdjacentLocations($current['id']);
+            
+            foreach ($adjacent as $adj) {
+                $adjId = $adj['location_id'];
+                if (!isset($visited[$adjId])) {
+                    $visited[$adjId] = $current['distance'] + 1;
+                    $queue[] = ['id' => $adjId, 'distance' => $current['distance'] + 1];
+                }
+            }
+        }
+        
+        return array_keys($visited);
+    }
+
+    /**
      * Move an entity to a new location
      */
     public function moveEntity(int $entityId, string $locationId): void

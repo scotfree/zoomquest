@@ -211,7 +211,7 @@ class ConfigLoader
     public function getScenarioFilename(int $optionValue): string
     {
         $scenarios = [
-            1 => 'test_0.json',
+            1 => 'cleaning_the_stables.json',
             2 => 'tempe_junction.json',
             3 => 'outland_valley.json',
         ];

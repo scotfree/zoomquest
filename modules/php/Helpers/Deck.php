@@ -24,9 +24,10 @@ class Deck
      *   - A string (card type) for backward compatibility
      *   - An array with 'name', 'type', and optional 'power' (default 1)
      */
-    public function createDeck(int $entityId, array $cards): void
+    public function createDeck(int $entityId, array $cards, string $pile = 'active'): void
     {
         $order = 0;
+        $safePile = addslashes($pile);
         foreach ($cards as $card) {
             if (is_string($card)) {
                 // Backward compatibility: just a card type string
@@ -42,7 +43,7 @@ class Deck
             
             $this->game->DbQuery(
                 "INSERT INTO card (entity_id, card_name, card_type, card_power, card_pile, card_order) 
-                 VALUES ($entityId, '$cardName', '$cardType', $cardPower, 'active', $order)"
+                 VALUES ($entityId, '$cardName', '$cardType', $cardPower, '$safePile', $order)"
             );
             $order++;
         }
