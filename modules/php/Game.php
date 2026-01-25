@@ -137,8 +137,9 @@ class Game extends \Bga\GameFramework\Table
         $filename = $configLoader->getScenarioFilename($scenarioOption);
         $config = $configLoader->loadScenario($filename);
 
-        // Store level name and faction matrix
+        // Store level name, text, and faction matrix
         $this->getGameStateHelper()->set(STATE_LEVEL_NAME, $config['level_name']);
+        $this->getGameStateHelper()->set(STATE_LEVEL_TEXT, $config['level_text'] ?? '');
         $this->getGameStateHelper()->set(STATE_ROUND, '0');
         
         // Store faction matrix from config
@@ -413,6 +414,10 @@ class Game extends \Bga\GameFramework\Table
         // Background image for the map (if any)
         $result['background_image'] = $stateHelper->get(STATE_BACKGROUND_IMAGE);
 
+        // Level name and intro text
+        $result['level_name'] = $stateHelper->get(STATE_LEVEL_NAME);
+        $result['level_text'] = $stateHelper->get(STATE_LEVEL_TEXT);
+
         // Visibility settings (for client display)
         $result['entity_visibility'] = $entityVisibility;
         $result['location_visibility'] = $locationVisibility;
@@ -479,7 +484,7 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Check if a player chose to plan (skip action sequence)
+     * Check if a player chose to plan (skip drawing cards in action sequence)
      */
     public function isPlayerPlanning(int $playerId): bool
     {
@@ -487,6 +492,21 @@ class Game extends \Bga\GameFramework\Table
             "SELECT is_planning FROM move_choice WHERE player_id = $playerId"
         );
         return $result == 1;
+    }
+
+    /**
+     * Check if a player is planning OR moving (either way, they don't draw cards in sequence)
+     * They participate in the sequence (can be targeted) but don't take actions
+     */
+    public function isPlayerNotActing(int $playerId): bool
+    {
+        $result = $this->getObjectFromDB(
+            "SELECT is_planning, target_location FROM move_choice WHERE player_id = $playerId"
+        );
+        if (!$result) return false;
+        
+        // Player is not acting if they're planning OR if they have a move target
+        return $result['is_planning'] == 1 || $result['target_location'] !== null;
     }
 
     /**

@@ -120,7 +120,61 @@ class SequenceCleanup extends GameState
             return SequenceSetup::class;
         }
 
+        // All sequences done - now process any pending movements
+        $this->processMovements();
+
         return CheckVictory::class;
+    }
+
+    /**
+     * Process all pending movements after sequences complete
+     */
+    private function processMovements(): void
+    {
+        $stateHelper = $this->game->getGameStateHelper();
+
+        // Get all move choices
+        $choices = $this->game->getCollectionFromDb(
+            "SELECT mc.player_id, mc.target_location, e.entity_id, e.entity_name, e.location_id
+             FROM move_choice mc
+             JOIN entity e ON e.player_id = mc.player_id"
+        );
+
+        // Process movements
+        foreach ($choices as $choice) {
+            if ($choice['target_location']) {
+                $entityId = (int)$choice['entity_id'];
+                
+                // Skip if entity was defeated during the sequence
+                $entity = $this->game->getObjectFromDB(
+                    "SELECT is_defeated FROM entity WHERE entity_id = $entityId"
+                );
+                if ($entity && $entity['is_defeated'] == 1) {
+                    continue;
+                }
+
+                $targetLocation = $choice['target_location'];
+
+                // Move the entity
+                $stateHelper->moveEntity($entityId, $targetLocation);
+
+                // Get location name for notification
+                $locationName = $this->game->getUniqueValueFromDB(
+                    "SELECT location_name FROM location WHERE location_id = '" . addslashes($targetLocation) . "'"
+                );
+
+                $this->notify->all('entityMoved', clienttranslate('${entity_name} moves to ${location_name}'), [
+                    'entity_id' => $entityId,
+                    'entity_name' => $choice['entity_name'],
+                    'from_location' => $choice['location_id'],
+                    'to_location' => $targetLocation,
+                    'location_name' => $locationName,
+                ]);
+            }
+        }
+
+        // Clear move choices
+        $this->game->clearMoveChoices();
     }
 }
 

@@ -119,6 +119,27 @@ class SequenceRoundEnd extends GameState
             return SequenceCleanup::class;
         }
 
+        // Check if no cards were drawn this round (all players planning/moving, no active NPCs)
+        // This prevents infinite loops when no one can act
+        $anyCardsDrawn = $sequenceResolver->anyCardsDrawnThisRound($sequenceId);
+        $this->game->trace("Any cards drawn check: " . ($anyCardsDrawn ? 'true' : 'false'));
+        
+        if (!$anyCardsDrawn) {
+            $this->game->trace(">>> ENDING: No cards drawn (no active participants)");
+            // Build status summary
+            $statusLog = $this->formatStatusSummary($status);
+            
+            $this->notify->all('sequenceEnd', clienttranslate('Turn ${game_round}: No actions'), [
+                'sequence_id' => $sequenceId,
+                'game_round' => $gameRound,
+                'eliminated_faction' => null,
+                'status' => $status,
+                'status_log' => $statusLog,
+                'no_action' => true,
+            ]);
+            return SequenceCleanup::class;
+        }
+
         // Sequence continues
         $this->game->trace(">>> CONTINUING to next round");
 

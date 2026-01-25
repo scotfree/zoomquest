@@ -44,6 +44,7 @@ function (dojo, declare, gamegui, counter) {
             console.log("Starting game setup", gamedatas);
 
             this.gamedatas = gamedatas;
+            this.levelIntroShown = false;
 
             // Build the game area
             this.buildGameArea();
@@ -57,7 +58,101 @@ function (dojo, declare, gamegui, counter) {
             // Setup notifications
             this.setupNotifications();
 
+            // Show level intro only at game start (round 0 or 1), not on reload or game end
+            // Also check we're not in gameEnd state (state 99)
+            const isGameStart = (gamedatas.round <= 1) && (gamedatas.gamestate?.name !== 'gameEnd');
+            if (gamedatas.level_text && !this.levelIntroShown && isGameStart) {
+                this.showLevelIntro();
+            }
+
             console.log("Game setup complete");
+        },
+
+        showLevelIntro: function() {
+            this.levelIntroShown = true;
+
+            const levelName = this.gamedatas.level_name || 'Adventure';
+            const levelText = this.gamedatas.level_text || '';
+            const levelGoal = this.gamedatas.victory?.description || 'Complete the adventure';
+            const levelGoalIcon = this.getVictoryIcon(this.gamedatas.victory?.type);
+            
+            // Get character goal for current player
+            const myGoal = this.gamedatas.player_goals?.[this.player_id];
+            const characterGoalHtml = myGoal ? `
+                <div class="zq-level-intro-goal">
+                    <span class="zq-level-intro-goal-label">${myGoal.goal_icon || '🎯'} Character Goal:</span>
+                    <span class="zq-level-intro-goal-text">${myGoal.goal_description}</span>
+                </div>
+            ` : '';
+
+            // Parse simple markdown bullet points
+            const formattedText = this.formatLevelText(levelText);
+
+            // Create overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'zq-level-intro-overlay';
+            overlay.id = 'zq-level-intro-overlay';
+            document.body.appendChild(overlay);
+
+            // Create popup
+            const popup = document.createElement('div');
+            popup.className = 'zq-level-intro-popup';
+            popup.id = 'zq-level-intro-popup';
+            popup.innerHTML = `
+                <div class="zq-level-intro-title">${levelName}</div>
+                <div class="zq-level-intro-goals">
+                    <div class="zq-level-intro-goal">
+                        <span class="zq-level-intro-goal-label">${levelGoalIcon} Level Goal:</span>
+                        <span class="zq-level-intro-goal-text">${levelGoal}</span>
+                    </div>
+                    ${characterGoalHtml}
+                </div>
+                <div class="zq-level-intro-text">${formattedText}</div>
+                <button class="zq-level-intro-start" id="zq-level-intro-start">⚔️ Begin Adventure</button>
+            `;
+            document.body.appendChild(popup);
+
+            // Add click handler
+            document.getElementById('zq-level-intro-start').addEventListener('click', () => {
+                this.hideLevelIntro();
+            });
+        },
+
+        formatLevelText: function(text) {
+            // Convert markdown-style bullet points to HTML
+            const lines = text.split('\n');
+            let inList = false;
+            let html = '';
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                    if (!inList) {
+                        html += '<ul>';
+                        inList = true;
+                    }
+                    html += `<li>${trimmed.substring(2)}</li>`;
+                } else if (trimmed) {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    html += `<p>${trimmed}</p>`;
+                }
+            });
+
+            if (inList) {
+                html += '</ul>';
+            }
+
+            return html;
+        },
+
+        hideLevelIntro: function() {
+            const overlay = document.getElementById('zq-level-intro-overlay');
+            const popup = document.getElementById('zq-level-intro-popup');
+            if (overlay) overlay.remove();
+            if (popup) popup.remove();
         },
 
         //
@@ -456,7 +551,8 @@ function (dojo, declare, gamegui, counter) {
                     break;
 
                 case 'SequenceCleanup':
-                    // Auto-hide after sequence ends
+                    // Popup stays open - user must click Close button to dismiss
+                    // Just hide the battle panel in the sidebar
                     this.hideBattlePanel();
                     break;
             }
@@ -833,7 +929,7 @@ function (dojo, declare, gamegui, counter) {
                 </div>
                 <div class="zq-deck-actions" id="zq-deck-actions">
                     <button id="zq-btn-plan" class="zq-deck-btn zq-btn-plan-deck">📋 Plan</button>
-                    <button id="zq-btn-action" class="zq-deck-btn zq-btn-action-deck">⚔️ Action</button>
+                    <button id="zq-btn-action" class="zq-deck-btn zq-btn-action-deck">⚔️ Act</button>
                 </div>
                 <div class="zq-move-hint">
                     Use Plan to manage cards. Click map to move.
@@ -1040,7 +1136,7 @@ function (dojo, declare, gamegui, counter) {
                 cardEl.classList.toggle('zq-selected-for-sacrifice');
                 if (cardEl.classList.contains('zq-selected-for-sacrifice')) {
                     this.selectedForLevelUp.push(cardId);
-                } else {
+                        } else {
                     this.selectedForLevelUp = this.selectedForLevelUp.filter(id => id !== cardId);
                 }
                 this.updateLevelUpUI();
@@ -1669,7 +1765,7 @@ function (dojo, declare, gamegui, counter) {
                 if (isMyLocation) {
                     // Current location - Plan or Action
                     buttonsHtml += `<button class="zq-popup-btn zq-btn-plan" onclick="gameui.onPlanClick()">📋 Plan</button>`;
-                    buttonsHtml += `<button class="zq-popup-btn zq-btn-action" onclick="gameui.onActionClick()">⚔️ Action</button>`;
+                    buttonsHtml += `<button class="zq-popup-btn zq-btn-action" onclick="gameui.onActionClick()">⚔️ Act</button>`;
                 } else if (isAdjacent) {
                     // Adjacent location - Move
                     buttonsHtml += `<button class="zq-popup-btn zq-btn-move" onclick="gameui.onMoveClick('${locationId}')">🚶 Move</button>`;
@@ -1711,7 +1807,7 @@ function (dojo, declare, gamegui, counter) {
                 popup.classList.add('zq-popup-above');
             } else {
                 // Position below the node (default)
-                popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
+            popup.style.top = (rect.top - containerRect.top + rect.height + 10) + 'px';
             }
 
             // Store reference for button handlers
@@ -1874,6 +1970,113 @@ function (dojo, declare, gamegui, counter) {
                 content.innerHTML = '<div class="zq-no-battle">No active battle</div>';
             }
             this.battleEnded = false;
+        },
+
+        // ──────────────────────────────────────────────────────────────────────
+        //   SEQUENCE POPUP MODAL
+        // ──────────────────────────────────────────────────────────────────────
+
+        showSequencePopup: function(locationId, locationName, participants) {
+            // Remove any existing popup
+            this.closeSequencePopup();
+
+            // Get the node's position to place the popup near it
+            const node = document.getElementById(`zq-node-${locationId}`);
+            const mapContainer = document.getElementById('zq-map-container');
+            if (!node || !mapContainer) return;
+
+            const nodeRect = node.getBoundingClientRect();
+            const mapRect = mapContainer.getBoundingClientRect();
+
+            // Calculate node position relative to map container
+            const nodeRelativeX = nodeRect.left - mapRect.left + nodeRect.width / 2;
+            const nodeRelativeY = nodeRect.top - mapRect.top + nodeRect.height / 2;
+
+            // Create the popup
+            const popup = document.createElement('div');
+            popup.id = 'zq-sequence-popup';
+            popup.className = 'zq-sequence-popup';
+            
+            popup.innerHTML = `
+                <div class="zq-sequence-popup-header">
+                    <span class="zq-sequence-popup-title">⚔️ ${locationName}</span>
+                    <span class="zq-sequence-popup-close" onclick="gameui.closeSequencePopup()">×</span>
+                </div>
+                <div class="zq-sequence-popup-participants">
+                    ${participants.map(p => {
+                        const icon = p.entity_type === 'player' ? '⚔️' : this.getMonsterIcon(p);
+                        return `<span class="zq-popup-participant ${p.entity_type}">${icon} ${p.entity_name}</span>`;
+                    }).join('')}
+                </div>
+                <div class="zq-sequence-popup-log" id="zq-sequence-popup-log"></div>
+                <div class="zq-sequence-popup-footer" id="zq-sequence-popup-footer" style="display: none;">
+                    <button class="zq-sequence-close-btn" onclick="gameui.closeSequencePopup()">Close</button>
+                </div>
+            `;
+
+            // Add popup to DOM first to measure its actual size
+            mapContainer.appendChild(popup);
+            const popupRect = popup.getBoundingClientRect();
+            const popupWidth = popupRect.width;
+            const popupHeight = popupRect.height;
+            const margin = 10;
+
+            // Check if node is in bottom half of map - if so, position popup above
+            const isInBottomHalf = nodeRelativeY > (mapRect.height / 2);
+            
+            // Position horizontally - prefer right of node, then left, then centered
+            let popupX = nodeRelativeX + 60;  // Right of node
+            if (popupX + popupWidth > mapRect.width - margin) {
+                popupX = nodeRelativeX - popupWidth - 60; // Left of node instead
+            }
+            if (popupX < margin) {
+                popupX = margin; // Clamp to left edge
+            }
+            
+            // Position vertically based on node position
+            let popupY;
+            if (isInBottomHalf) {
+                // Node is in bottom half - position popup above the node
+                popupY = nodeRelativeY - nodeRect.height / 2 - popupHeight - 20;
+                if (popupY < margin) {
+                    popupY = margin;
+                }
+            } else {
+                // Node is in top half - position popup below the node
+                popupY = nodeRelativeY + nodeRect.height / 2 + 20;
+                if (popupY + popupHeight > mapRect.height - margin) {
+                    popupY = mapRect.height - popupHeight - margin;
+                }
+            }
+
+            popup.style.left = `${popupX}px`;
+            popup.style.top = `${popupY}px`;
+        },
+
+        closeSequencePopup: function() {
+            const popup = document.getElementById('zq-sequence-popup');
+            if (popup) {
+                popup.remove();
+            }
+            // Also clean up location highlight
+            if (this.activeSequenceLocationId) {
+                const node = document.getElementById(`zq-node-${this.activeSequenceLocationId}`);
+                if (node) {
+                    node.classList.remove('zq-node-active-sequence');
+                }
+                this.activeSequenceLocationId = null;
+            }
+        },
+
+        showSequencePopupCloseButton: function() {
+            const footer = document.getElementById('zq-sequence-popup-footer');
+            if (footer) {
+                footer.style.display = 'block';
+            }
+        },
+
+        getSequencePopupLog: function() {
+            return document.getElementById('zq-sequence-popup-log');
         },
 
         updateBattleDisplay: function(data) {
@@ -2050,22 +2253,18 @@ function (dojo, declare, gamegui, counter) {
             console.log('Timestamp:', new Date().toISOString());
 
             this.battleEnded = false;
-            this.showBattlePanel();
-            this.updateRoundLocation(args.location_name);
+            this.activeSequenceLocationId = args.location_id;
 
-            const content = document.getElementById('zq-battle-content');
-            content.innerHTML = `
-                <div class="zq-battle-location">📍 ${args.location_name}</div>
-                <div class="zq-battle-participants">
-                    ${args.participants.map(p => {
-                        const icon = p.entity_type === 'player' ? '⚔️' : this.getMonsterIcon(p);
-                        return `<div class="zq-battle-participant ${p.entity_type}">
-                            ${icon} ${p.entity_name}
-                        </div>`;
-                    }).join('')}
-                </div>
-                <div class="zq-battle-log" id="zq-battle-log"></div>
-            `;
+            // Highlight the location with active combat
+            if (args.location_id) {
+                const node = document.getElementById(`zq-node-${args.location_id}`);
+                if (node) {
+                    node.classList.add('zq-node-active-sequence');
+                }
+            }
+
+            // Show the popup modal over the location
+            this.showSequencePopup(args.location_id, args.location_name, args.participants);
 
             const delay = this.getAnimationDelay();
             console.log('sequenceStart applying delay:', delay, 'ms');
@@ -2078,7 +2277,7 @@ function (dojo, declare, gamegui, counter) {
             console.log('Cards drawn data:', args.drawn_cards);
             console.log('Timestamp:', new Date().toISOString());
 
-            const log = document.getElementById('zq-battle-log');
+            const log = this.getSequencePopupLog();
             if (log && args.drawn_cards) {
                 let html = '<div class="zq-cards-drawn"><strong>Cards drawn:</strong>';
                 args.drawn_cards.forEach(card => {
@@ -2240,7 +2439,7 @@ function (dojo, declare, gamegui, counter) {
                 entity.is_defeated = 1;
             }
 
-            const log = document.getElementById('zq-battle-log');
+            const log = this.getSequencePopupLog();
             if (log) {
                 let lootText = '';
                 if (args.items_looted && args.items_looted.length > 0) {
@@ -2259,11 +2458,45 @@ function (dojo, declare, gamegui, counter) {
             console.log('Result:', args);
             console.log('Timestamp:', new Date().toISOString());
 
-            const log = document.getElementById('zq-battle-log');
+            // Handle "no action" sequences with simplified display and auto-close
+            if (args.no_action) {
+                const popup = document.getElementById('zq-sequence-popup');
+                if (popup) {
+                    // Replace popup content with simple "No Actions" message
+                    const log = this.getSequencePopupLog();
+                    if (log) {
+                        log.innerHTML = '<div class="zq-no-action-message">No Actions</div>';
+                    }
+                    // Hide participants section for cleaner look
+                    const participants = popup.querySelector('.zq-sequence-popup-participants');
+                    if (participants) {
+                        participants.style.display = 'none';
+                    }
+                }
+                
+                // Remove red pulse from location
+                if (this.activeSequenceLocationId) {
+                    const node = document.getElementById(`zq-node-${this.activeSequenceLocationId}`);
+                    if (node) {
+                        node.classList.remove('zq-node-active-sequence');
+                    }
+                }
+                
+                // Auto-close after 2 seconds (but still allow manual close)
+                this.showSequencePopupCloseButton();
+                setTimeout(() => {
+                    this.closeSequencePopup();
+                }, 2000);
+                
+                this.battleEnded = true;
+                return;
+            }
+
+            const log = this.getSequencePopupLog();
             if (log) {
                 let message = '';
                 if (args.eliminated_faction) {
-                    message = `<strong>${args.eliminated_faction}</strong> faction eliminated!`;
+                    message = `💀 <strong>${args.eliminated_faction}</strong> faction eliminated!`;
                 } else {
                     message = '⚖️ <strong>Standoff.</strong> All combatants are exhausted.';
                 }
@@ -2273,6 +2506,17 @@ function (dojo, declare, gamegui, counter) {
 
             // Clear card highlights
             this.clearCardHighlight();
+
+            // Remove red pulse from location (but keep popup open)
+            if (this.activeSequenceLocationId) {
+                const node = document.getElementById(`zq-node-${this.activeSequenceLocationId}`);
+                if (node) {
+                    node.classList.remove('zq-node-active-sequence');
+                }
+            }
+
+            // Show the close button on the popup
+            this.showSequencePopupCloseButton();
 
             this.battleEnded = true;
             console.log('Sequence complete, no delay applied (end notification)');
@@ -2288,50 +2532,21 @@ function (dojo, declare, gamegui, counter) {
             console.log('Full round data:', JSON.stringify(args, null, 2));
             console.log('Timestamp:', new Date().toISOString());
 
-            const log = document.getElementById('zq-battle-log');
+            const log = this.getSequencePopupLog();
             if (!log) return;
 
-            // Build round container (append, don't replace)
+            // Build round container using the pre-formatted round_log from PHP
+            // This matches exactly what appears in the BGA sidebar
             let html = `<div class="zq-battle-round" data-round="${args.round}">`;
             html += `<div class="zq-round-header">⚔️ Round ${args.round}</div>`;
-
-            // Group resolutions by phase (resolution order: watch, sneak, defend, attack, heal, etc)
-            const phases = {
-                watch: { icon: '👁️', name: 'Watch', resolutions: [] },
-                watch: { icon: '👁️', name: 'Watch', resolutions: [] },
-                sneak: { icon: '🥷', name: 'Sneak', resolutions: [] },
-                mark: { icon: '🎯', name: 'Mark', resolutions: [] },
-                attack: { icon: '⚔️', name: 'Attack', resolutions: [] },
-                defend: { icon: '🛡️', name: 'Defend', resolutions: [] },
-                poison: { icon: '🧪', name: 'Poison', resolutions: [] },
-                heal: { icon: '💚', name: 'Heal', resolutions: [] },
-                shuffle: { icon: '🔀', name: 'Shuffle', resolutions: [] },
-                sell: { icon: '🏷️', name: 'Sell', resolutions: [] },
-                wealth: { icon: '💰', name: 'Wealth', resolutions: [] },
-                steal: { icon: '🤏', name: 'Steal', resolutions: [] }
-            };
-
-            args.resolutions.forEach(r => {
-                if (phases[r.card_type]) {
-                    phases[r.card_type].resolutions.push(r);
-                }
-            });
-
-            // Display each phase
-            for (const [type, phase] of Object.entries(phases)) {
-                if (phase.resolutions.length > 0) {
-                    html += `<div class="zq-phase-section">`;
-                    html += `<div class="zq-phase-header">${phase.icon} ${phase.name}:</div>`;
-                    phase.resolutions.forEach(r => {
-                        const desc = this.formatResolutionLine(r);
-                        html += `<div class="zq-phase-line">• ${desc}</div>`;
-                    });
-                    html += `</div>`;
-                }
+            
+            // Use the pre-formatted round_log from PHP (same as BGA sidebar)
+            if (args.round_log) {
+                html += `<div class="zq-round-log">${args.round_log}</div>`;
             }
 
             // Check for loot drops from defeats
-            const lootEvents = args.resolutions.filter(r => r.items_transferred && r.items_transferred.length > 0);
+            const lootEvents = (args.resolutions || []).filter(r => r.items_transferred && r.items_transferred.length > 0);
             if (lootEvents.length > 0) {
                 html += `<div class="zq-loot-section">`;
                 html += `<div class="zq-loot-header">🎁 Loot Acquired:</div>`;
@@ -2361,9 +2576,9 @@ function (dojo, declare, gamegui, counter) {
             html += `<div class="zq-round-status">`;
             html += `<div class="zq-status-header">End of Round ${args.round}:</div>`;
             html += `<div class="zq-status-line">`;
-            args.status.forEach((s, idx) => {
+            (args.status || []).forEach((s, idx) => {
                 const status = s.is_defeated ? '💀' : `${s.active}/${s.discard}/${s.inactive}`;
-                const sep = idx < args.status.length - 1 ? ' | ' : '';
+                const sep = idx < (args.status || []).length - 1 ? ' | ' : '';
                 html += `<span class="zq-entity-status ${s.entity_type}">${s.entity_name}: ${status}</span>${sep}`;
             });
             html += `</div></div>`;
@@ -2692,7 +2907,7 @@ function (dojo, declare, gamegui, counter) {
             // Try to get user preference, default to instant for dev (normal for prod)
             let speed = 'instant'; // Default for when preference unavailable (e.g. BGA Studio)
             try {
-                const pref = this.getGameUserPreference(100);
+            const pref = this.getGameUserPreference(100);
                 const speeds = { 0: 'instant', 1: 'fast', 2: 'normal', 3: 'slow' };
                 speed = speeds[pref] || 'instant';
             } catch (e) {

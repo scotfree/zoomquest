@@ -90,6 +90,7 @@ const TAG_MARKED = 'marked';
  */
 const STATE_ROUND = 'round';
 const STATE_LEVEL_NAME = 'level_name';
+const STATE_LEVEL_TEXT = 'level_text';
 const STATE_CURRENT_SEQUENCE = 'current_sequence';
 const STATE_SEQUENCES_TO_RESOLVE = 'sequences_to_resolve';
 const STATE_SEQUENCE_ROUND = 'sequence_round';

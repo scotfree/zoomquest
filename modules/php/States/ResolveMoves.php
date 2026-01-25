@@ -12,9 +12,10 @@ require_once(dirname(__DIR__) . '/constants.inc.php');
 
 /**
  * State: Resolve Moves (game state)
- * - Apply all movement
- * - Refresh decks (discard → bottom of active)
- * - Find sequence locations
+ * - Find sequence locations at CURRENT player positions (before moving)
+ * - Run sequences first (moving players participate but don't draw cards)
+ * - Actual movement happens AFTER sequences complete (in SequenceCleanup)
+ * - No destination sequences - turn ends after moving
  */
 class ResolveMoves extends GameState
 {
@@ -34,6 +35,40 @@ class ResolveMoves extends GameState
     {
         $stateHelper = $this->game->getGameStateHelper();
         $deck = $this->game->getDeck();
+
+        // Refresh all entity decks (discard → bottom of active, maintaining order)
+        $allEntities = $stateHelper->getAllEntities();
+        foreach ($allEntities as $entity) {
+            if ($entity['is_defeated'] == 0) {
+                $deck->refreshDeck((int)$entity['entity_id']);
+            }
+        }
+
+        // Find sequence locations at CURRENT positions (before any movement)
+        // This allows hostiles to get "free attacks" on players who are moving/planning
+        $sequenceResolver = $this->game->getActionSequenceResolver();
+        $sequenceLocations = $sequenceResolver->getSequenceLocations();
+
+        if (!empty($sequenceLocations)) {
+            // Run sequences first - movement will happen after in SequenceCleanup
+            $stateHelper->set(
+                STATE_SEQUENCES_TO_RESOLVE,
+                json_encode($sequenceLocations)
+            );
+            return SequenceSetup::class;
+        } else {
+            // No sequences needed - process movements now
+            $this->processMovements();
+            return CheckVictory::class;
+        }
+    }
+
+    /**
+     * Process all pending movements
+     */
+    private function processMovements(): void
+    {
+        $stateHelper = $this->game->getGameStateHelper();
 
         // Get all move choices
         $choices = $this->game->getCollectionFromDb(
@@ -66,30 +101,8 @@ class ResolveMoves extends GameState
             }
         }
 
-        // Refresh all entity decks (discard → bottom of active, maintaining order)
-        $allEntities = $stateHelper->getAllEntities();
-        foreach ($allEntities as $entity) {
-            if ($entity['is_defeated'] == 0) {
-                $deck->refreshDeck((int)$entity['entity_id']);
-            }
-        }
-
         // Clear move choices
         $this->game->clearMoveChoices();
-
-        // Find sequence locations (where players are with hostiles)
-        $sequenceResolver = $this->game->getActionSequenceResolver();
-        $sequenceLocations = $sequenceResolver->getSequenceLocations();
-
-        if (!empty($sequenceLocations)) {
-            $stateHelper->set(
-                STATE_SEQUENCES_TO_RESOLVE,
-                json_encode($sequenceLocations)
-            );
-            return SequenceSetup::class;
-        } else {
-            return CheckVictory::class;
-        }
     }
 }
 

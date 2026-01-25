@@ -1,5 +1,6 @@
 {
-  "level_name": "tempe_junction",
+  "level_name": "Tempe Junction",
+  "level_text": "- The crossroads of Tempe Junction have become dangerous territory.\n- Bandits prowl the roads while goblins lurk in the wilderness.\n- Undead creatures stir in the darker corners of the map.\n- Form alliances with friendly factions or go it alone.\n- Clear out all hostile creatures to restore peace to the region!",
   "round": 0,
   "background_image": "img/tempe_junction.png",
   "entity_visibility": 2,

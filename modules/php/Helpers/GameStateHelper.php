@@ -264,7 +264,7 @@ class GameStateHelper
     }
 
     /**
-     * Check if all monsters are defeated
+     * Check if all monsters are defeated (legacy - checks entity_type)
      */
     public function areAllMonstersDefeated(): bool
     {
@@ -272,6 +272,38 @@ class GameStateHelper
             "SELECT COUNT(*) FROM entity WHERE entity_type = 'monster' AND is_defeated = 0"
         );
         return $alive === 0;
+    }
+
+    /**
+     * Check if all entities hostile to players are defeated
+     * Uses faction matrix to determine hostility
+     */
+    public function areAllHostilesDefeated(): bool
+    {
+        $matrixJson = $this->get(STATE_FACTION_MATRIX);
+        if (!$matrixJson) {
+            // Fallback to old behavior if no matrix defined
+            return $this->areAllMonstersDefeated();
+        }
+        
+        $matrix = json_decode($matrixJson, true);
+        
+        // Get all non-defeated entities
+        $entities = $this->game->getObjectListFromDB(
+            "SELECT entity_id, faction FROM entity WHERE is_defeated = 0"
+        );
+        
+        foreach ($entities as $entity) {
+            $faction = $entity['faction'];
+            // Check if this faction is hostile to players
+            $relationToPlayers = $matrix['players'][$faction] ?? RELATION_NEUTRAL;
+            if ($relationToPlayers === RELATION_HOSTILE) {
+                // Found a living hostile entity
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     /**
@@ -292,10 +324,10 @@ class GameStateHelper
     {
         $json = $this->get(STATE_VICTORY_CONDITION);
         if (!$json) {
-            // Default: defeat all monsters
+            // Default: defeat all hostiles
             return [
                 'type' => VICTORY_DEFEAT_ALL,
-                'description' => 'Defeat all monsters'
+                'description' => 'Defeat all hostile creatures'
             ];
         }
         return json_decode($json, true);
@@ -310,11 +342,20 @@ class GameStateHelper
         $condition = $this->getVictoryCondition();
         $type = $condition['type'] ?? VICTORY_DEFEAT_ALL;
         $target = $condition['target'] ?? null;
+        $turnLimit = $condition['turn_limit'] ?? null;
+
+        // Check turn limit first (defeat condition)
+        if ($turnLimit !== null) {
+            $currentTurn = $this->getRound();
+            if ($currentTurn > $turnLimit) {
+                return [false, "Time has run out! (Turn $currentTurn of $turnLimit) Defeat!"];
+            }
+        }
 
         switch ($type) {
             case VICTORY_DEFEAT_ALL:
-                if ($this->areAllMonstersDefeated()) {
-                    return [true, 'All monsters have been defeated! Victory!'];
+                if ($this->areAllHostilesDefeated()) {
+                    return [true, 'All hostile creatures have been defeated! Victory!'];
                 }
                 break;
 

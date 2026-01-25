@@ -126,7 +126,7 @@ class ActionSequenceResolver
     }
 
     /**
-     * Get locations where sequences should occur
+     * Get locations where sequences should occur (all locations with players)
      */
     public function getSequenceLocations(): array
     {
@@ -138,7 +138,21 @@ class ActionSequenceResolver
     }
 
     /**
+     * Check if any participant drew a card this round
+     */
+    public function anyCardsDrawnThisRound(int $sequenceId): bool
+    {
+        $count = (int)$this->game->getUniqueValueFromDB(
+            "SELECT COUNT(*) FROM sequence_participant 
+             WHERE sequence_id = $sequenceId AND drawn_card_id IS NOT NULL"
+        );
+        return $count > 0;
+    }
+
+    /**
      * Create a sequence record and initialize participants
+     * Note: Planning players ARE added as participants (so they can be targeted by hostiles)
+     * but they will skip drawing cards in drawCardsForSequence()
      */
     public function createSequence(string $locationId): int
     {
@@ -151,14 +165,8 @@ class ActionSequenceResolver
         foreach ($entities as $entity) {
             $entityId = (int)$entity['entity_id'];
             
-            // Skip players who chose "Plan"
-            if ($entity['entity_type'] === 'player' && $entity['player_id']) {
-                $playerId = (int)$entity['player_id'];
-                if ($this->game->isPlayerPlanning($playerId)) {
-                    continue;
-                }
-            }
-            
+            // All entities become participants (including planning players)
+            // Planning players can still be targeted by hostiles, they just won't draw cards
             $this->game->DbQuery(
                 "INSERT INTO sequence_participant (sequence_id, entity_id, drawn_card_id, target_entity_id, block_count, is_resolved) 
                  VALUES ($sequenceId, $entityId, NULL, NULL, 0, 0)"
@@ -226,11 +234,12 @@ class ActionSequenceResolver
 
     /**
      * Draw cards for all participants (targets determined at resolution time)
+     * Players who are planning or moving skip drawing - they're in the sequence to be targeted, but don't act
      */
     public function drawCardsForSequence(int $sequenceId, int $currentRound): array
     {
         $participants = $this->game->getObjectListFromDB(
-            "SELECT sp.entity_id, e.entity_type, e.entity_name, e.faction 
+            "SELECT sp.entity_id, e.entity_type, e.entity_name, e.faction, e.player_id 
              FROM sequence_participant sp
              JOIN entity e ON sp.entity_id = e.entity_id
              WHERE sp.sequence_id = $sequenceId AND e.is_defeated = 0"
@@ -239,6 +248,16 @@ class ActionSequenceResolver
         $drawnCards = [];
         foreach ($participants as $p) {
             $entityId = (int)$p['entity_id'];
+            
+            // Skip drawing for players who are planning OR moving
+            // They're in the sequence to be targeted, but don't take actions
+            if ($p['entity_type'] === 'player' && $p['player_id']) {
+                $playerId = (int)$p['player_id'];
+                if ($this->game->isPlayerNotActing($playerId)) {
+                    continue;
+                }
+            }
+            
             $card = $this->deck->drawTop($entityId);
 
             if ($card) {

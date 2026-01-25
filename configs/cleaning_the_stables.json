@@ -1,22 +1,15 @@
 {
   "level_name": "Cleaning The Stables (Tutorial)",
+  "level_text": "You have come to the town of Tempe Junction seeking adventure. A road leads into town but looks suspicious - be careful!.\n- You deck shows what actions you'll take in a locaiton.   \n- Take a Plan action to rest and rearrange your action deck..\n- Visit the Stable Hand to purchase equipment if you have coin.\n- Get to the Town Square within 15 turns to win!",
   "round": 0,
   "background_image": "img/test_0.png",
   "victory": {
-    "type": "defeat_all",
-    "description": "Defeat all monsters to win!"
+    "type": "reach_location",
+    "target": "town_square",
+    "description": "Get to the Town Square within 15 turns!",
+    "turn_limit": 15
   },
   "individual_goals": [
-    {
-      "id": "explorer",
-      "name": "The Explorer",
-      "description": "Visit 4+ unique locations",
-      "icon": "🗺️",
-      "track": "locations_visited",
-      "threshold": 4,
-      "points": 2
-    },
-    
     {
       "id": "slayer",
       "name": "The Slayer",
@@ -24,16 +17,6 @@
       "icon": "💀",
       "track": "killing_blows",
       "threshold": 3,
-      "points": 2
-    },
-    {
-      "id": "undead_hunter",
-      "name": "The Undead Hunter",
-      "description": "Defeat 2+ undead enemies",
-      "icon": "☠️",
-      "track": "killing_blows_faction",
-      "filter": "undead",
-      "threshold": 2,
       "points": 2
     },
     {
@@ -88,43 +71,58 @@
   "map": {
     "locations": [
       {
-        "id": "stables",
-        "name": "Illplaced Farm",
-        "description": "They should have knowed.",
+        "id": "town_square",
+        "name": "Town Square",
+        "description": "The bustling heart of Tempe Junction - your destination!",
         "terrain": "settled",
         "direction": "center",
-        "x": 0.5282877316857899,
-        "y": 0.05119760479041916
+        "x": 0.796557811120918,
+        "y": 0.02125748502994012
       },
       {
         "id": "illplaced",
+        "name": "Illplaced Farm",
+        "description": "Bad place for a farm, good place to bu a sword.",
+        "terrain": "settled",
+        "direction": "center",
+        "x": 0.9232127096204766,
+        "y": 0.6535928143712575
+      },
+      {
+        "id": "stables",
         "name": "Town Stables",
-        "description": "Horses and supplies for the road",
+        "description": "Something ate all the horses...and needs to leave. Fatally.",
         "terrain": "settled",
         "direction": "south",
-        "x": 0.03225948808473076,
-        "y": 0.4341317365269461
+        "x": 0.37030008826125327,
+        "y": 0.07365269461077845
       },
       {
         "id": "farm",
         "name": "Abandoned Farm",
-        "description": "Overgrown fields and a collapsed barn",
+        "description": "You start in an empty field, but there's a barn in the distance.",
         "terrain": "wilderness",
         "direction": "south",
-        "x": 0.9003970437786875,
-        "y": 0.5544910179640719
+        "x": 0.036319373875774816,
+        "y": 0.681437125748503
       },
       {
         "id": "south_road",
         "name": "South Road",
-        "description": "The main trade route heading south",
+        "description": "The road outside town attacks an unsavory type of bandit.",
         "terrain": "wilderness",
         "direction": "south",
-        "x": 0.512400657064645,
-        "y": 0.5805388591486957
+        "x": 0.48592228107170593,
+        "y": 0.8308382603463006
       }
     ],
     "connections": [
+      {
+        "name": "Gut Lane",
+        "from": "stables",
+        "to": "town_square",
+        "bidirectional": true
+      },
       {
         "name": "South Trail",
         "from": "stables",
@@ -145,8 +143,8 @@
       },
       {
         "name": "Gut Lane",
-        "from": "stables",
-        "to": "farm",
+        "from": "illplaced",
+        "to": "stables",
         "bidirectional": true
       }
     ]
@@ -159,48 +157,21 @@
       "location": "farm",
       "decks": {
         "active": [
-          {"name": "Greatsword", "type": "attack", "power": 2},
-          {"name": "Dagger", "type": "attack", "power": 1},
-          {"name": "Sword", "type": "attack", "power": 1}
-        ]
-      }
-    },
-    {
-      "name": "Alice",
-      "class": "cleric",
-      "faction": "players",
-      "location": "farm",
-      "decks": {
-        "active": [
-          {"name": "Blessed Shield", "type": "defend", "power": 2},
-          {"name": "Divine Heal", "type": "heal", "power": 2},
-          {"name": "Ward", "type": "defend", "power": 1}
-        ]
-      }
-    },
-    {
-      "name": "Charlie",
-      "class": "knight",
-      "faction": "players",
-      "location": "farm",
-      "decks": {
-        "active": [
-          {"name": "Lance", "type": "attack", "power": 2},
-          {"name": "Tower Shield", "type": "defend", "power": 2},
-          {"name": "Sword", "type": "attack", "power": 1}
-        ]
-      }
-    },
-    {
-      "name": "Diana",
-      "class": "paladin",
-      "faction": "players",
-      "location": "farm",
-      "decks": {
-        "active": [
-          {"name": "Smite", "type": "attack", "power": 2},
-          {"name": "Holy Shield", "type": "defend", "power": 1},
-          {"name": "Lay on Hands", "type": "heal", "power": 2}
+          {
+            "name": "Decent Sword Parry",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Dagger Stab",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Sword Block",
+            "type": "defend",
+            "power": 1
+          }
         ]
       }
     },
@@ -211,9 +182,21 @@
       "location": "farm",
       "decks": {
         "active": [
-          {"name": "Cloak", "type": "sneak", "power": 2},
-          {"name": "Shadow Step", "type": "sneak", "power": 1},
-          {"name": "Backstab Dagger", "type": "attack", "power": 1}
+          {
+            "name": "Cloak",
+            "type": "sneak",
+            "power": 2
+          },
+          {
+            "name": "Shadow Step",
+            "type": "sneak",
+            "power": 1
+          },
+          {
+            "name": "Backstab Dagger",
+            "type": "attack",
+            "power": 1
+          }
         ]
       }
     }
@@ -223,11 +206,15 @@
       "name": "Stable Hand",
       "class": "merchant",
       "faction": "friendly",
-      "location": "stables",
+      "location": "illplaced",
       "level": 1,
       "decks": {
         "active": [
-          {"name": "Sell", "type": "sell", "power": 1}
+          {
+            "name": "Sell",
+            "type": "sell",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -249,9 +236,16 @@
       "location": "south_road",
       "decks": {
         "active": [
-          {"name": "Cutlass", "type": "attack", "power": 1},
-          {"name": "Parry", "type": "defend", "power": 1},
-          {"name": "Cutlass", "type": "attack", "power": 1}
+          {
+            "name": "Cutlass",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Parry",
+            "type": "defend",
+            "power": 1
+          }
         ]
       },
       "items": [
@@ -270,14 +264,29 @@
       "name": "Goblin",
       "class": "goblin",
       "faction": "goblins",
-      "location": "illplaced",
+      "location": "stables",
       "decks": {
         "active": [
-          {"name": "Crude Knife", "type": "attack", "power": 1},
-          {"name": "Goblin Shield", "type": "defend", "power": 1},
-          {"name": "Scratch", "type": "attack", "power": 1},
-          {"name": "Duck", "type": "defend", "power": 1},
-          {"name": "Poison Spit", "type": "poison", "power": 2}
+          {
+            "name": "Crude Knife",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Goblin Shield",
+            "type": "defend",
+            "power": 1
+          },
+          {
+            "name": "Scratch",
+            "type": "attack",
+            "power": 1
+          },
+          {
+            "name": "Duck",
+            "type": "defend",
+            "power": 1
+          }
         ]
       },
       "items": [
